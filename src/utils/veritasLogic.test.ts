@@ -16,6 +16,15 @@ import {
   generateFibonacciSphereLatLon,
   decodeTopoJsonLandRings,
   computeCinematicBeatState,
+  GLOBE_JOURNEY_STOPS,
+  interpolateGlobeJourney,
+  computeHeroLetterLift,
+  SCROLL_BG_PALETTE,
+  computeScrollBackgroundState,
+  computeStatueTilt,
+  computeStatueScrollPose,
+  computeTorchProximity,
+  clampEmberCap,
 } from './veritasLogic';
 
 test('validateConferenceForm rejects empty registration fields', () => {
@@ -217,6 +226,115 @@ test('computeCinematicBeatState hits exact 0-8s beat milestones', () => {
   const pDone = computeCinematicBeatState(9.6);
   assert.equal(pDone.phase, 'done');
   assert.equal(pDone.handoffProgress, 1);
+});
+
+test('GLOBE_JOURNEY_STOPS covers all 7 page sections around the world', () => {
+  assert.equal(GLOBE_JOURNEY_STOPS.length, 7);
+  assert.deepEqual(
+    GLOBE_JOURNEY_STOPS.map((s) => s.id),
+    ['top', 'secretariat', 'about', 'committees', 'schedule', 'faq', 'register']
+  );
+});
+
+test('interpolateGlobeJourney smoothly transitions between world regions across scroll', () => {
+  const start = interpolateGlobeJourney(GLOBE_JOURNEY_STOPS, 0);
+  const end = interpolateGlobeJourney(GLOBE_JOURNEY_STOPS, 1);
+  assert.notEqual(start.rotY, end.rotY);
+  assert.ok(Math.abs(start.posX - GLOBE_JOURNEY_STOPS[0].posXDesktop) < 1e-6);
+  assert.ok(Math.abs(end.posX - GLOBE_JOURNEY_STOPS[GLOBE_JOURNEY_STOPS.length - 1].posXDesktop) < 1e-6);
+
+  const clampedLow = interpolateGlobeJourney(GLOBE_JOURNEY_STOPS, -0.5);
+  const clampedHigh = interpolateGlobeJourney(GLOBE_JOURNEY_STOPS, 1.5);
+  assert.deepEqual(clampedLow, start);
+  assert.deepEqual(clampedHigh, end);
+});
+
+test('computeHeroLetterLift lifts letters near pointer and returns zero outside radius or with reduced motion', () => {
+  const exact = computeHeroLetterLift(200, 300, 200, 300, 120, 14, false);
+  assert.equal(exact.liftY, -14);
+  assert.equal(exact.glow, 1);
+
+  const edge = computeHeroLetterLift(200, 300, 320, 300, 120, 14, false);
+  assert.deepEqual(edge, { liftY: 0, glow: 0 });
+
+  const reduced = computeHeroLetterLift(200, 300, 200, 300, 120, 14, true);
+  assert.deepEqual(reduced, { liftY: 0, glow: 0 });
+});
+
+test('computeScrollBackgroundState smoothly blends ink -> cream -> taupe based on scroll position', () => {
+  const anchors = [
+    { centerY: 0, rgb: SCROLL_BG_PALETTE.ink },
+    { centerY: 1000, rgb: SCROLL_BG_PALETTE.cream },
+    { centerY: 2000, rgb: SCROLL_BG_PALETTE.taupe },
+  ];
+
+  const atHero = computeScrollBackgroundState(0, anchors);
+  assert.deepEqual(atHero.rgb, [26, 18, 23]);
+  assert.equal(atHero.isDark, true);
+  assert.equal(atHero.darkness, 1);
+
+  const midInkCream = computeScrollBackgroundState(500, anchors);
+  assert.ok(midInkCream.rgb[0] > 26 && midInkCream.rgb[0] < 237);
+
+  const atCream = computeScrollBackgroundState(1000, anchors);
+  assert.deepEqual(atCream.rgb, [237, 230, 214]);
+  assert.equal(atCream.isDark, false);
+  assert.equal(atCream.darkness, 0);
+
+  const atTaupe = computeScrollBackgroundState(2500, anchors);
+  assert.deepEqual(atTaupe.rgb, [186, 177, 160]);
+  assert.equal(atTaupe.isDark, false);
+});
+
+test('computeStatueTilt tilts toward cursor within 8deg limit and zeros under reducedMotion', () => {
+  const rightBottom = computeStatueTilt(1000, 900, 600, 500, 300, 300, 8, false);
+  assert.equal(rightBottom.tiltY, 8);
+  assert.equal(rightBottom.tiltX, -8);
+
+  const subtle = computeStatueTilt(750, 350, 600, 500, 300, 300, 8, false);
+  assert.equal(subtle.tiltY, 4);
+  assert.equal(subtle.tiltX, 4);
+
+  const reduced = computeStatueTilt(1000, 900, 600, 500, 300, 300, 8, true);
+  assert.deepEqual(reduced, { tiltX: 0, tiltY: 0 });
+});
+
+test('computeStatueScrollPose shrinks 70vh to 28vh pinned on desktop and hides after hero under 700px', () => {
+  const desktopHero = computeStatueScrollPose(0, 900, 0, 1440);
+  assert.equal(desktopHero.scale, 1);
+  assert.equal(desktopHero.isPinned, false);
+  assert.equal(desktopHero.visible, true);
+
+  const desktopScrolled = computeStatueScrollPose(900, 900, 0.8, 1440);
+  assert.equal(desktopScrolled.scale, 0.4);
+  assert.equal(desktopScrolled.isPinned, true);
+  assert.equal(desktopScrolled.visible, true);
+  assert.ok(desktopScrolled.driftY < 0);
+  assert.ok(desktopScrolled.rotateZ < 0);
+
+  const mobileHero = computeStatueScrollPose(0, 844, 0, 390);
+  assert.equal(mobileHero.visible, true);
+
+  const mobileAfterHero = computeStatueScrollPose(700, 844, 0.4, 390);
+  assert.equal(mobileAfterHero.visible, false);
+});
+
+test('computeTorchProximity doubles glow during flare and clampEmberCap caps mobile at 40', () => {
+  const calm = computeTorchProximity(800, 800, 100, 100, 220, -1, false, false);
+  const near = computeTorchProximity(110, 110, 100, 100, 220, -1, false, false);
+  assert.ok(near.proximity > 0.9);
+  assert.ok(near.glowScale > calm.glowScale);
+  assert.ok(near.targetEmbers > calm.targetEmbers);
+
+  const peakFlare = computeTorchProximity(800, 800, 100, 100, 220, 72, false, false);
+  assert.ok(peakFlare.flareStrength > 0.98);
+  assert.ok(peakFlare.glowScale >= calm.glowScale * 1.98);
+
+  const reduced = computeTorchProximity(110, 110, 100, 100, 220, 72, false, true);
+  assert.equal(reduced.targetEmbers, 0);
+
+  assert.equal(clampEmberCap(120, true), 40);
+  assert.equal(clampEmberCap(120, false), 65);
 });
 
 

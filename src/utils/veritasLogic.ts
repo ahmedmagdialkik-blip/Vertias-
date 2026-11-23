@@ -421,4 +421,267 @@ export function computeCinematicBeatState(elapsedSec: number): CinematicBeatStat
   };
 }
 
+export interface GlobeJourneyStop {
+  id: string;
+  region: string;
+  latDeg: number;
+  lonDeg: number;
+  posXDesktop: number;
+  posYDesktop: number;
+  scaleDesktop: number;
+}
+
+export const GLOBE_JOURNEY_STOPS: readonly GlobeJourneyStop[] = [
+  { id: 'top', region: 'New York', latDeg: 38, lonDeg: -74, posXDesktop: 1.38, posYDesktop: -0.02, scaleDesktop: 1.54 },
+  { id: 'secretariat', region: 'Geneva', latDeg: 44, lonDeg: 6, posXDesktop: 1.48, posYDesktop: 0.02, scaleDesktop: 1.38 },
+  { id: 'about', region: 'Amman', latDeg: 24, lonDeg: 36, posXDesktop: 1.42, posYDesktop: -0.02, scaleDesktop: 1.44 },
+  { id: 'committees', region: 'New Delhi', latDeg: 18, lonDeg: 86, posXDesktop: 1.40, posYDesktop: 0.0, scaleDesktop: 1.46 },
+  { id: 'schedule', region: 'Tokyo', latDeg: 35, lonDeg: 139, posXDesktop: 1.44, posYDesktop: -0.02, scaleDesktop: 1.44 },
+  { id: 'faq', region: 'Sydney', latDeg: -26, lonDeg: 151, posXDesktop: 1.48, posYDesktop: 0.03, scaleDesktop: 1.40 },
+  { id: 'register', region: 'Brasilia', latDeg: -16, lonDeg: 305, posXDesktop: 1.40, posYDesktop: -0.02, scaleDesktop: 1.48 },
+];
+
+export interface InterpolatedGlobePose {
+  rotY: number;
+  tiltX: number;
+  posX: number;
+  posY: number;
+  scale: number;
+}
+
+export function interpolateGlobeJourney(
+  stops: readonly GlobeJourneyStop[],
+  progress: number
+): InterpolatedGlobePose {
+  if (stops.length === 0) {
+    return { rotY: -0.65, tiltX: -0.22, posX: 1.42, posY: 0, scale: 1.44 };
+  }
+  const clamped = Math.min(1, Math.max(0, progress));
+  const scaled = clamped * (stops.length - 1);
+  const idx = Math.min(stops.length - 1, Math.floor(scaled));
+  const nextIdx = Math.min(stops.length - 1, idx + 1);
+  const localT = scaled - idx;
+  const smoothT = localT * localT * (3 - 2 * localT);
+
+  const a = stops[idx];
+  const b = stops[nextIdx];
+
+  const lon = a.lonDeg + (b.lonDeg - a.lonDeg) * smoothT;
+  const lat = a.latDeg + (b.latDeg - a.latDeg) * smoothT;
+
+  return {
+    rotY: (-lon * Math.PI) / 180,
+    tiltX: (lat * Math.PI) / 180 * 0.58,
+    posX: a.posXDesktop + (b.posXDesktop - a.posXDesktop) * smoothT,
+    posY: a.posYDesktop + (b.posYDesktop - a.posYDesktop) * smoothT,
+    scale: a.scaleDesktop + (b.scaleDesktop - a.scaleDesktop) * smoothT,
+  };
+}
+
+export function computeHeroLetterLift(
+  letterCenterX: number,
+  letterCenterY: number,
+  cursorX: number,
+  cursorY: number,
+  radius = 120,
+  maxLiftPx = 14,
+  reducedMotion = false
+): { liftY: number; glow: number } {
+  if (reducedMotion || radius <= 0 || maxLiftPx <= 0) {
+    return { liftY: 0, glow: 0 };
+  }
+  const dist = Math.hypot(cursorX - letterCenterX, cursorY - letterCenterY);
+  if (dist >= radius) {
+    return { liftY: 0, glow: 0 };
+  }
+  const t = 1 - dist / radius;
+  const eased = t * t * (3 - 2 * t);
+  return {
+    liftY: Number((-eased * maxLiftPx).toFixed(2)),
+    glow: Number(eased.toFixed(3)),
+  };
+}
+
+export const SCROLL_BG_PALETTE = {
+  ink: [26, 18, 23] as const,
+  cream: [237, 230, 214] as const,
+  taupe: [186, 177, 160] as const,
+};
+
+export interface ScrollBgAnchor {
+  centerY: number;
+  rgb: readonly [number, number, number];
+}
+
+export interface ScrollBackgroundState {
+  rgb: [number, number, number];
+  cssColor: string;
+  luminance: number;
+  isDark: boolean;
+  darkness: number;
+}
+
+export function computeScrollBackgroundState(
+  focalY: number,
+  anchors: readonly ScrollBgAnchor[]
+): ScrollBackgroundState {
+  if (anchors.length === 0) {
+    return {
+      rgb: [26, 18, 23],
+      cssColor: 'rgb(26, 18, 23)',
+      luminance: 0.08,
+      isDark: true,
+      darkness: 1,
+    };
+  }
+  let rgb: [number, number, number];
+  if (focalY <= anchors[0].centerY) {
+    rgb = [anchors[0].rgb[0], anchors[0].rgb[1], anchors[0].rgb[2]];
+  } else if (focalY >= anchors[anchors.length - 1].centerY) {
+    const last = anchors[anchors.length - 1].rgb;
+    rgb = [last[0], last[1], last[2]];
+  } else {
+    let idx = 0;
+    for (let i = 0; i < anchors.length - 1; i++) {
+      if (focalY >= anchors[i].centerY && focalY <= anchors[i + 1].centerY) {
+        idx = i;
+        break;
+      }
+    }
+    const a = anchors[idx];
+    const b = anchors[idx + 1];
+    const span = Math.max(1, b.centerY - a.centerY);
+    const rawT = clamp01((focalY - a.centerY) / span);
+    const edgeT = clamp01((rawT - 0.18) / 0.64);
+    const smoothT = edgeT * edgeT * (3 - 2 * edgeT);
+    rgb = [
+      Math.round(a.rgb[0] + (b.rgb[0] - a.rgb[0]) * smoothT),
+      Math.round(a.rgb[1] + (b.rgb[1] - a.rgb[1]) * smoothT),
+      Math.round(a.rgb[2] + (b.rgb[2] - a.rgb[2]) * smoothT),
+    ];
+  }
+  const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+  const isDark = luminance < 0.34;
+  const darkness = clamp01(1 - (luminance - 0.14) / 0.34);
+  return {
+    rgb,
+    cssColor: `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`,
+    luminance: Number(luminance.toFixed(4)),
+    isDark,
+    darkness: Number(darkness.toFixed(4)),
+  };
+}
+
+export function computeStatueTilt(
+  pointerX: number,
+  pointerY: number,
+  centerX: number,
+  centerY: number,
+  spanX: number,
+  spanY: number,
+  maxDeg = 8,
+  reducedMotion = false
+): { tiltX: number; tiltY: number } {
+  if (reducedMotion || maxDeg <= 0 || spanX <= 0 || spanY <= 0) {
+    return { tiltX: 0, tiltY: 0 };
+  }
+  const limit = Math.min(8, maxDeg);
+  const nx = Math.max(-1, Math.min(1, (pointerX - centerX) / spanX));
+  const ny = Math.max(-1, Math.min(1, (pointerY - centerY) / spanY));
+  return {
+    tiltX: Number((-ny * limit).toFixed(3)),
+    tiltY: Number((nx * limit).toFixed(3)),
+  };
+}
+
+export interface StatueScrollPose {
+  heroTransition: number;
+  scale: number;
+  rotateZ: number;
+  driftY: number;
+  isPinned: boolean;
+  visible: boolean;
+}
+
+export function computeStatueScrollPose(
+  scrollY: number,
+  viewportHeight: number,
+  scrollProgress: number,
+  viewportWidth: number
+): StatueScrollPose {
+  const vh = Math.max(1, viewportHeight);
+  const heroSpan = vh * 0.65;
+  const rawT = clamp01(scrollY / heroSpan);
+  const easeT = rawT < 0.5 ? 4 * rawT * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
+  const isSmallScreen = viewportWidth < 700;
+  const clampedProgress = clamp01(scrollProgress);
+
+  if (isSmallScreen) {
+    return {
+      heroTransition: easeT,
+      scale: 1,
+      rotateZ: Number((-clampedProgress * 3).toFixed(3)),
+      driftY: Number((-rawT * 36).toFixed(2)),
+      isPinned: false,
+      visible: rawT < 0.92,
+    };
+  }
+
+  return {
+    heroTransition: easeT,
+    scale: Number((1 - easeT * 0.6).toFixed(4)),
+    rotateZ: Number((-clampedProgress * 4.5).toFixed(3)),
+    driftY: Number((-clampedProgress * 22).toFixed(2)),
+    isPinned: rawT > 0.5,
+    visible: true,
+  };
+}
+
+export interface TorchVisualState {
+  proximity: number;
+  flareStrength: number;
+  glowScale: number;
+  glowOpacity: number;
+  targetEmbers: number;
+}
+
+export function computeTorchProximity(
+  cursorX: number,
+  cursorY: number,
+  torchX: number,
+  torchY: number,
+  radius = 220,
+  flareElapsedMs = -1,
+  isMobile = false,
+  reducedMotion = false
+): TorchVisualState {
+  const dist = Math.hypot(cursorX - torchX, cursorY - torchY);
+  const prox = !reducedMotion && radius > 0 ? clamp01(1 - dist / radius) : 0;
+  const flareDuration = 600;
+  let flareStrength = 0;
+  if (flareElapsedMs >= 0 && flareElapsedMs <= flareDuration) {
+    const u = flareElapsedMs / flareDuration;
+    flareStrength = u < 0.12 ? u / 0.12 : Math.pow(1 - (u - 0.12) / 0.88, 1.5);
+  }
+  const glowScale = Number(((1 + prox * 0.45) * (1 + flareStrength)).toFixed(3));
+  const glowOpacity = Number(Math.min(1, (0.68 + prox * 0.24) * (1 + flareStrength)).toFixed(3));
+  const baseEmbers = Math.round(10 + prox * 22 + flareStrength * 28);
+  const targetEmbers = reducedMotion ? 0 : clampEmberCap(baseEmbers, isMobile);
+
+  return {
+    proximity: Number(prox.toFixed(3)),
+    flareStrength: Number(flareStrength.toFixed(3)),
+    glowScale,
+    glowOpacity,
+    targetEmbers,
+  };
+}
+
+export function clampEmberCap(desiredCount: number, isMobile: boolean): number {
+  const cap = isMobile ? 40 : 65;
+  return Math.max(0, Math.min(cap, Math.round(desiredCount)));
+}
+
+
+
 
