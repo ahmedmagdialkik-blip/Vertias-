@@ -251,4 +251,174 @@ export function shouldRevealOnScroll(
   return top < viewportHeight * thresholdRatio && bottom > 0;
 }
 
+export function latLonToCartesian(
+  latDeg: number,
+  lonDeg: number,
+  radius = 1
+): SpherePoint {
+  const lat = (latDeg * Math.PI) / 180;
+  const lon = (lonDeg * Math.PI) / 180;
+  const cosLat = Math.cos(lat);
+  return {
+    x: radius * cosLat * Math.sin(lon),
+    y: radius * Math.sin(lat),
+    z: radius * cosLat * Math.cos(lon),
+  };
+}
+
+export function generateFibonacciSphereLatLon(
+  samples: number
+): Array<{ lat: number; lon: number; x: number; y: number; z: number }> {
+  const count = Math.max(0, Math.floor(samples));
+  const out: Array<{ lat: number; lon: number; x: number; y: number; z: number }> = [];
+  if (count === 0) return out;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < count; i++) {
+    const y = count === 1 ? 0 : 1 - (i / (count - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = goldenAngle * i;
+    const x = Math.cos(theta) * r;
+    const z = Math.sin(theta) * r;
+    const lat = (Math.asin(Math.max(-1, Math.min(1, y))) * 180) / Math.PI;
+    const lon = (Math.atan2(x, z) * 180) / Math.PI;
+    out.push({ lat, lon, x, y, z });
+  }
+  return out;
+}
+
+export interface TopoJsonTopology {
+  type: 'Topology';
+  transform?: { scale: [number, number]; translate: [number, number] };
+  arcs: number[][][];
+  objects: Record<string, TopoGeometry>;
+}
+
+export interface TopoGeometry {
+  type: string;
+  geometries?: TopoGeometry[];
+  arcs?: unknown;
+}
+
+export function decodeTopoJsonLandRings(topology: TopoJsonTopology): number[][][][] {
+  const scale = topology.transform?.scale ?? [1, 1];
+  const translate = topology.transform?.translate ?? [0, 0];
+  const decodedArcs = topology.arcs.map((arc) => {
+    let x = 0;
+    let y = 0;
+    return arc.map((pt) => {
+      x += pt[0];
+      y += pt[1];
+      return [x * scale[0] + translate[0], y * scale[1] + translate[1]];
+    });
+  });
+
+  const buildRing = (indices: number[]): number[][] => {
+    const pts: number[][] = [];
+    for (const idx of indices) {
+      const rev = idx < 0;
+      const raw = decodedArcs[rev ? ~idx : idx];
+      if (!raw || raw.length === 0) continue;
+      const start = rev ? raw.length - 1 : 0;
+      const step = rev ? -1 : 1;
+      for (let i = 0; i < raw.length; i++) {
+        if (pts.length > 0 && i === 0) continue;
+        pts.push(raw[start + i * step]);
+      }
+    }
+    return pts;
+  };
+
+  const polygons: number[][][][] = [];
+  const walk = (geom: TopoGeometry | undefined) => {
+    if (!geom) return;
+    if (geom.type === 'GeometryCollection' && Array.isArray(geom.geometries)) {
+      geom.geometries.forEach(walk);
+    } else if (geom.type === 'Polygon' && Array.isArray(geom.arcs)) {
+      polygons.push((geom.arcs as number[][]).map(buildRing));
+    } else if (geom.type === 'MultiPolygon' && Array.isArray(geom.arcs)) {
+      (geom.arcs as number[][][]).forEach((poly) => polygons.push(poly.map(buildRing)));
+    }
+  };
+  walk(topology.objects.land ?? Object.values(topology.objects)[0]);
+  return polygons;
+}
+
+export interface CinematicBeatState {
+  phase: 'point' | 'expand' | 'arcs' | 'impact' | 'title' | 'handoff' | 'done';
+  pointAlpha: number;
+  globeExpand: number;
+  wavePos: number;
+  arcsVisible: number;
+  arcsConverge: number;
+  impactShock: number;
+  shakeIntensity: number;
+  flashAlpha: number;
+  logoScale: number;
+  logoAlpha: number;
+  laurelPercent: number;
+  lettersCount: number;
+  handoffProgress: number;
+}
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+const easeOutCubic = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3);
+
+export function computeCinematicBeatState(elapsedSec: number): CinematicBeatState {
+  const t = Math.max(0, elapsedSec);
+  const phase: CinematicBeatState['phase'] =
+    t < 1.5
+      ? 'point'
+      : t < 3.5
+        ? 'expand'
+        : t < 5.5
+          ? 'arcs'
+          : t < 6.5
+            ? 'impact'
+            : t < 8.0
+              ? 'title'
+              : t < 9.35
+                ? 'handoff'
+                : 'done';
+
+  const pointAlpha =
+    t < 1.5
+      ? easeOutCubic(t / 0.65)
+      : t < 2.15
+        ? 1 - clamp01((t - 1.5) / 0.65)
+        : 0;
+
+  const globeExpand = t < 1.5 ? 0 : easeOutCubic((t - 1.5) / 0.9);
+  const wavePos = t < 1.6 ? -1.4 : -1.4 + clamp01((t - 1.6) / 1.85) * 2.8;
+  const arcsVisible = t < 3.5 ? 0 : t < 5.5 ? clamp01((t - 3.5) / 1.8) : 1;
+  const arcsConverge = t < 5.15 ? 0 : clamp01((t - 5.15) / 0.35);
+  const impactShock = t < 5.5 ? 0 : t < 6.35 ? clamp01((t - 5.5) / 0.85) : 0;
+  const shakeIntensity = t >= 5.5 && t < 5.65 ? 1 - (t - 5.5) / 0.15 : 0;
+  const flashAlpha = t >= 5.5 && t < 5.82 ? (1 - (t - 5.5) / 0.32) * 0.52 : 0;
+
+  const logoReveal = t < 5.5 ? 0 : easeOutCubic((t - 5.5) / 0.55);
+  const logoAlpha = t < 5.5 ? 0 : clamp01((t - 5.5) / 0.35);
+  const logoScale = 0.64 + logoReveal * 0.36;
+  const laurelPercent = t < 5.55 ? 0 : easeOutCubic((t - 5.55) / 0.9) * 118;
+
+  const lettersCount = t < 6.5 ? 0 : Math.min(10, Math.floor((t - 6.5) / 0.095) + 1);
+  const handoffProgress = t < 8.0 ? 0 : clamp01((t - 8.0) / 1.35);
+
+  return {
+    phase,
+    pointAlpha,
+    globeExpand,
+    wavePos,
+    arcsVisible,
+    arcsConverge,
+    impactShock,
+    shakeIntensity,
+    flashAlpha,
+    logoScale,
+    logoAlpha,
+    laurelPercent,
+    lettersCount,
+    handoffProgress,
+  };
+}
+
 

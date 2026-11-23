@@ -12,6 +12,10 @@ import {
   computeMagneticButtonOffset,
   stepSpringPhoto,
   shouldRevealOnScroll,
+  latLonToCartesian,
+  generateFibonacciSphereLatLon,
+  decodeTopoJsonLandRings,
+  computeCinematicBeatState,
 } from './veritasLogic';
 
 test('validateConferenceForm rejects empty registration fields', () => {
@@ -152,6 +156,67 @@ test('shouldRevealOnScroll triggers within viewport threshold or immediately wit
   assert.equal(shouldRevealOnScroll(700, 820, 120, 900, 0.88, false), true);
   assert.equal(shouldRevealOnScroll(840, 960, 120, 900, 0.88, false), false);
   assert.equal(shouldRevealOnScroll(1200, 1320, 120, 900, 0.88, true), true);
+});
+
+test('latLonToCartesian maps unit sphere coordinates accurately', () => {
+  const eq = latLonToCartesian(0, 0, 2);
+  assert.ok(Math.abs(eq.x) < 1e-6 && Math.abs(eq.y) < 1e-6 && Math.abs(eq.z - 2) < 1e-6);
+  const pole = latLonToCartesian(90, 45, 2);
+  assert.ok(Math.abs(pole.y - 2) < 1e-6);
+});
+
+test('generateFibonacciSphereLatLon spans both hemispheres cleanly', () => {
+  const pts = generateFibonacciSphereLatLon(500);
+  assert.equal(pts.length, 500);
+  assert.ok(pts[0].lat > 80);
+  assert.ok(pts[499].lat < -80);
+});
+
+test('decodeTopoJsonLandRings decodes delta-encoded quantized TopoJSON polygons', () => {
+  const polygons = decodeTopoJsonLandRings({
+    type: 'Topology',
+    transform: { scale: [0.1, 0.1], translate: [-10, -10] },
+    arcs: [
+      [[0, 0], [100, 0], [0, 100], [-100, 0], [0, -100]],
+    ],
+    objects: {
+      land: { type: 'Polygon', arcs: [[0]] },
+    },
+  });
+  assert.equal(polygons.length, 1);
+  assert.deepEqual(polygons[0][0][0], [-10, -10]);
+  assert.deepEqual(polygons[0][0][1], [0, -10]);
+});
+
+test('computeCinematicBeatState hits exact 0-8s beat milestones', () => {
+  const p1 = computeCinematicBeatState(0.8);
+  assert.equal(p1.phase, 'point');
+  assert.ok(p1.pointAlpha > 0.9);
+  assert.equal(p1.globeExpand, 0);
+
+  const p2 = computeCinematicBeatState(2.6);
+  assert.equal(p2.phase, 'expand');
+  assert.equal(p2.globeExpand, 1);
+  assert.ok(p2.wavePos > -1.4);
+
+  const p3 = computeCinematicBeatState(4.5);
+  assert.equal(p3.phase, 'arcs');
+  assert.ok(p3.arcsVisible > 0.5);
+
+  const p4 = computeCinematicBeatState(5.55);
+  assert.equal(p4.phase, 'impact');
+  assert.ok(p4.shakeIntensity > 0);
+  assert.ok(p4.flashAlpha > 0);
+  assert.ok(p4.logoAlpha > 0);
+
+  const p5 = computeCinematicBeatState(7.7);
+  assert.equal(p5.phase, 'title');
+  assert.equal(p5.lettersCount, 10);
+  assert.equal(p5.laurelPercent, 118);
+
+  const pDone = computeCinematicBeatState(9.6);
+  assert.equal(pDone.phase, 'done');
+  assert.equal(pDone.handoffProgress, 1);
 });
 
 
