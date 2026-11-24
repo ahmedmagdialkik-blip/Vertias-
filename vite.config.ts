@@ -9,6 +9,17 @@ export default defineConfig(() => {
     plugins: [
       react(),
       tailwindcss(),
+      // Adds the admin-panel content loader to the public page only (not the portal).
+      {
+        name: 'inject-cms',
+        transformIndexHtml: {
+          order: 'pre' as const,
+          handler(_html: string, ctx: {path: string}) {
+            if (ctx.path.startsWith('/portal')) return [];
+            return [{tag: 'script', attrs: {type: 'module', src: '/src/cms.js'}, injectTo: 'body' as const}];
+          },
+        },
+      },
       // Copies src/assets into dist/ so root-relative URLs like
       // "/src/assets/images/..." (e.g. generate_image output) still resolve
       // in production builds. Do not remove.
