@@ -232,7 +232,7 @@ test('GLOBE_JOURNEY_STOPS covers all 7 page sections around the world', () => {
   assert.equal(GLOBE_JOURNEY_STOPS.length, 7);
   assert.deepEqual(
     GLOBE_JOURNEY_STOPS.map((s) => s.id),
-    ['top', 'secretariat', 'about', 'committees', 'schedule', 'faq', 'register']
+    ['top', 'secretariat', 'about', 'committees', 'schedule', 'faq', 'apply']
   );
 });
 

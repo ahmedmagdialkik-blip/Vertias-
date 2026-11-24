@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
-import { isPortalPathname, navigate, useLocationState } from './lib/router';
+import { isPortalPathname, useLocationState } from './lib/router';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { AccountPage } from './pages/AccountPage';
 import { AdminPage } from './pages/AdminPage';
@@ -10,17 +10,6 @@ import type { TeamCardRow } from './types/database';
 import { DEFAULT_TEAM_CARDS, mergeSiteContentWithFallback } from './utils/portalLogic';
 
 const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
-  useEffect(() => {
-    const loginAnchor = document.getElementById('teamLoginLink');
-    if (!loginAnchor) return;
-    const onLoginClick = (e: MouseEvent) => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-      e.preventDefault();
-      navigate('/login');
-    };
-    loginAnchor.addEventListener('click', onLoginClick);
-    return () => loginAnchor.removeEventListener('click', onLoginClick);
-  }, []);
 
   useEffect(() => {
     if (!active || !isSupabaseConfigured || !supabase) return;

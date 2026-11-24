@@ -11,7 +11,7 @@
 <script>
 (function(){
   var p = window.location.pathname || '/';
-  if (p === '/login' || p === '/signup' || p === '/account' || p === '/admin') {
+  if (p === '/login' || p === '/signup' || p === '/account' || p === '/admin' || p === '/apply') {
     document.documentElement.classList.add('is-portal-route');
   }
 })();
@@ -619,7 +619,7 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
     <a href="#committees">Committees</a>
     <a href="#schedule">Schedule</a>
     <a href="#faq">FAQ</a>
-    <a href="#register">Register</a>
+    <a href="#apply">Apply</a>
   </div>
 </nav>
 <div id="introControls">
@@ -639,7 +639,7 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
       <h1 class="hero-title" aria-label="Veritas MUN"><span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:0">V</span><span class="hero-char" style="--ci:1">E</span><span class="hero-char" style="--ci:2">R</span><span class="hero-char" style="--ci:3">I</span><span class="hero-char" style="--ci:4">T</span><span class="hero-char" style="--ci:5">A</span><span class="hero-char" style="--ci:6">S</span></span> <span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:7">M</span><span class="hero-char" style="--ci:8">U</span><span class="hero-char" style="--ci:9">N</span></span></h1>
       <p class="rise hero-tag">Where diplomacy meets truth</p>
       <div class="hero-actions">
-        <a class="btn-solid" href="#register">Register</a>
+        <a class="btn-solid" href="/apply">Apply as Security</a>
       </div>
     </div>
   </section>
@@ -752,17 +752,16 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
     </div>
   </section>
 
-  <section id="register" class="band">
+  <section id="apply" class="band">
     <div class="band-inner">
       <div class="section-head">
         <span class="section-num" aria-hidden="true">06</span>
-        <h2 class="ink-heading">Register</h2>
+        <h2 class="ink-heading">Apply</h2>
       </div>
-      <div class="tba-stage">
-        <p class="tba-word">TBA</p>
-        <div class="tba-rule" aria-hidden="true"></div>
-        <p class="tba-sub">To be announced.</p>
+      <div class="about-prose" style="margin-bottom:30px">
+        <p>Applications for the Veritas MUN Security Department are now open. Share your previous conference experience, proof documents, and situational responses for Executive Board review.</p>
       </div>
+      <a class="btn-solid" href="/apply">Apply as Security</a>
     </div>
   </section>
 
@@ -1557,7 +1556,7 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     { id: 'committees', region: 'New Delhi', latDeg: 18, lonDeg: 86, posXDesktop: 1.40, posYDesktop: 0.0, scaleDesktop: 1.46 },
     { id: 'schedule', region: 'Tokyo', latDeg: 35, lonDeg: 139, posXDesktop: 1.44, posYDesktop: -0.02, scaleDesktop: 1.44 },
     { id: 'faq', region: 'Sydney', latDeg: -26, lonDeg: 151, posXDesktop: 1.48, posYDesktop: 0.03, scaleDesktop: 1.40 },
-    { id: 'register', region: 'Brasilia', latDeg: -16, lonDeg: 305, posXDesktop: 1.40, posYDesktop: -0.02, scaleDesktop: 1.48 }
+    { id: 'apply', region: 'Brasilia', latDeg: -16, lonDeg: 305, posXDesktop: 1.40, posYDesktop: -0.02, scaleDesktop: 1.48 }
   ];
 
   function computeScrollJourneyPose(progress) {
@@ -2304,7 +2303,7 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     { sel: '#committees', rgb: [26, 18, 23] },
     { sel: '#schedule', rgb: [237, 230, 214] },
     { sel: '#faq', rgb: [186, 177, 160] },
-    { sel: '#register', rgb: [26, 18, 23] },
+    { sel: '#apply', rgb: [26, 18, 23] },
     { sel: '.site-footer', rgb: [26, 18, 23], atEnd: true }
   ];
 
@@ -2995,15 +2994,6 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       return;
     }
 
-    if (sectionId === 'register' && settings) {
-      var statusP = document.createElement('p');
-      statusP.className = 'register-status';
-      statusP.textContent = settings.registration_open
-        ? 'Delegate registration is open.'
-        : 'Delegate registration is currently closed.';
-      inner.appendChild(statusP);
-    }
-
     var list = document.createElement('div');
     list.className = 'dynamic-list';
 
@@ -3045,39 +3035,10 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
         a.textContent = item.answer || '';
         entry.appendChild(q);
         if (item.answer) entry.appendChild(a);
-      } else if (sectionId === 'register') {
-        var rt = document.createElement('h3');
-        rt.className = 'dynamic-entry-title';
-        rt.textContent = item.title || '';
-        entry.appendChild(rt);
-        if (item.details) {
-          var rd = document.createElement('p');
-          rd.className = 'dynamic-entry-body';
-          rd.textContent = item.details;
-          entry.appendChild(rd);
-        }
-        var href = safeHref(item.linkUrl);
-        if (href && (!settings || settings.registration_open !== false)) {
-          var link = document.createElement('a');
-          link.className = 'dynamic-link';
-          link.href = href;
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          link.textContent = item.linkLabel || 'Open Registration';
-          entry.appendChild(link);
-        }
       }
       list.appendChild(entry);
     });
     inner.appendChild(list);
-
-    if (sectionId === 'register' && settings && settings.contact_email) {
-      var contactP = document.createElement('p');
-      contactP.className = 'dynamic-entry-body';
-      contactP.style.marginTop = '18px';
-      contactP.textContent = 'Questions: ' + settings.contact_email;
-      inner.appendChild(contactP);
-    }
   }
 
   function renderTeamCards(cards) {
@@ -3134,7 +3095,6 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       renderDynamicTbaSection('committees', content.committees, content.settings);
       renderDynamicTbaSection('schedule', content.schedule, content.settings);
       renderDynamicTbaSection('faq', content.faq, content.settings);
-      renderDynamicTbaSection('register', content.register, content.settings);
       if (content.settings && content.settings.site_name) {
         document.title = content.settings.site_name;
         var navBrand = $('.nav-brand .brand');

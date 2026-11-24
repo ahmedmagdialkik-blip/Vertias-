@@ -438,7 +438,7 @@ export const GLOBE_JOURNEY_STOPS: readonly GlobeJourneyStop[] = [
   { id: 'committees', region: 'New Delhi', latDeg: 18, lonDeg: 86, posXDesktop: 1.40, posYDesktop: 0.0, scaleDesktop: 1.46 },
   { id: 'schedule', region: 'Tokyo', latDeg: 35, lonDeg: 139, posXDesktop: 1.44, posYDesktop: -0.02, scaleDesktop: 1.44 },
   { id: 'faq', region: 'Sydney', latDeg: -26, lonDeg: 151, posXDesktop: 1.48, posYDesktop: 0.03, scaleDesktop: 1.40 },
-  { id: 'register', region: 'Brasilia', latDeg: -16, lonDeg: 305, posXDesktop: 1.40, posYDesktop: -0.02, scaleDesktop: 1.48 },
+  { id: 'apply', region: 'Brasilia', latDeg: -16, lonDeg: 305, posXDesktop: 1.40, posYDesktop: -0.02, scaleDesktop: 1.48 },
 ];
 
 export interface InterpolatedGlobePose {

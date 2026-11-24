@@ -22,22 +22,13 @@ function section(id, v) {
   const stage = document.querySelector(`#${id} .tba-stage`);
   if (!stage || !v || typeof v !== 'object' || v.tba !== false) return; // still TBA
   const box = el('div', 'cms-list');
-  if (id === 'register') {
-    if (v.text) box.append(el('p', 'cms-p', v.text));
-    if (v.link && /^https?:\/\//.test(v.link)) {
-      const a = el('a', 'btn-solid', 'Register');
-      a.href = v.link; a.target = '_blank'; a.rel = 'noopener';
-      box.append(a);
-    }
-  } else {
-    (v.items || []).forEach((it) => {
-      const row = el('div', 'cms-item');
-      if (id === 'faq') row.append(el('h3', 'cms-h', it.q), el('p', 'cms-p', it.a));
-      else if (id === 'schedule') row.append(el('p', 'cms-when', it.when), el('h3', 'cms-h', it.title), el('p', 'cms-p', it.details));
-      else row.append(el('h3', 'cms-h', it.name), el('p', 'cms-p', it.details));
-      box.append(row);
-    });
-  }
+  (v.items || []).forEach((it) => {
+    const row = el('div', 'cms-item');
+    if (id === 'faq') row.append(el('h3', 'cms-h', it.q), el('p', 'cms-p', it.a));
+    else if (id === 'schedule') row.append(el('p', 'cms-when', it.when), el('h3', 'cms-h', it.title), el('p', 'cms-p', it.details));
+    else row.append(el('h3', 'cms-h', it.name), el('p', 'cms-p', it.details));
+    box.append(row);
+  });
   if (box.children.length) stage.replaceWith(box);
 }
 
@@ -81,7 +72,7 @@ function cards(rows) {
         m.about_text.split(/\n\s*\n/).forEach((p, i) => box.append(el('p', i === 0 ? 'dropcap' : '', p.trim())));
       }
     }
-    ['committees', 'schedule', 'faq', 'register'].forEach((id) => section(id, m[id]));
+    ['committees', 'schedule', 'faq'].forEach((id) => section(id, m[id]));
     cards(t);
   } catch (e) { /* keep built-in content */ }
 })();

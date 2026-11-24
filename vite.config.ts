@@ -9,6 +9,18 @@ export default defineConfig(() => {
     plugins: [
       react(),
       tailwindcss(),
+      {
+        name: 'portal-dev-rewrite',
+        configureServer(server) {
+          server.middlewares.use((req, _res, next) => {
+            const url = (req.url || '').split('?')[0].replace(/\/$/, '');
+            if (url === '/admin' || url === '/login' || url === '/signup' || url === '/account' || url === '/apply') {
+              req.url = '/portal/index.html';
+            }
+            next();
+          });
+        },
+      },
       // Adds the admin-panel content loader to the public page only (not the portal).
       {
         name: 'inject-cms',

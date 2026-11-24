@@ -11,7 +11,7 @@ export const DEFAULT_SITE_CONTENT: FullSiteContent = {
   hero: {
     title: 'VERITAS MUN',
     tagline: 'Where diplomacy meets truth',
-    ctaLabel: 'Register'
+    ctaLabel: 'Apply as Security'
   },
   about: {
     paragraphs: [
