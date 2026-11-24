@@ -1,6 +1,7 @@
 import {createRoot} from 'react-dom/client';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
+import {LayoutDashboard,ClipboardList,Users,UserRound,Megaphone,History,Globe,ChevronRight,ExternalLink,LogOut,FileText} from 'lucide-react';
 import {
   buildProofStoragePath,
   countWords,
@@ -132,7 +133,115 @@ fieldset.choice-group{border:0;padding:0;margin:0 0 16px}
   .apply-card{padding:22px 16px}
   .stepper{grid-template-columns:1fr 1fr}
   .f-grid,.review-grid{grid-template-columns:1fr}
-}`;
+}
+/* Veritas admin theme — inspired by the supplied forest-green dashboard reference */
+.admin-layout{min-height:100vh;display:flex;background:#07140f;color:#e8f0e9;font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.admin-sidebar{width:258px;min-width:258px;height:100vh;position:sticky;top:0;display:flex;flex-direction:column;overflow:hidden;background:#091a12;border-right:1px solid #20392b;padding:19px 13px 13px}
+.admin-brand{padding:5px 10px 21px;border-bottom:1px solid #294234}
+.admin-wordmark{font-family:Cinzel,Georgia,serif;font-weight:700;font-size:19px;letter-spacing:.075em;color:#eef5ef}
+.admin-wordmark span{color:#75c99a}
+.admin-brand-sub{margin-top:4px;font-size:10px;letter-spacing:.22em;color:#86a995;text-transform:uppercase}
+.admin-nav-scroll{flex:1;min-height:0;overflow-y:auto;padding:13px 0 18px}
+.admin-nav-group{margin:0 0 17px}
+.admin-nav-group-title{padding:0 12px 7px;color:#789987;font-size:10px;font-weight:700;letter-spacing:.19em;text-transform:uppercase}
+.admin-nav-item{width:100%;display:flex;align-items:center;gap:12px;min-height:43px;margin:2px 0;padding:9px 12px;border:0;border-radius:8px;background:transparent;color:#b9cbbf;font:inherit;text-align:left;cursor:pointer;position:relative}
+.admin-nav-item svg{color:#85a994;flex:0 0 auto}
+.admin-nav-item:hover{background:#102c1e;color:#f1f7f2}
+.admin-nav-item.active{background:#143b29;color:#f2faf4;font-weight:650}
+.admin-nav-item.active:before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:4px;background:#72d29b}
+.admin-nav-item.active svg{color:#82dfa9}
+.admin-sidebar-footer{border-top:1px solid #294234;padding-top:12px}
+.admin-profile{display:flex;align-items:center;gap:10px;padding:10px 9px;border:1px solid #234431;background:#0e281b;border-radius:9px;min-width:0}
+.admin-avatar{width:34px;height:34px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;background:#1a4a32;color:#9ce4b7;font-size:11px;font-weight:750;border:1px solid #3a7652}
+.admin-profile-copy{min-width:0;display:flex;flex-direction:column;line-height:1.35}
+.admin-profile-copy strong{font-size:12px;color:#edf5ef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-profile-copy span{font-size:11px;color:#84a993;margin-top:3px}
+.admin-site-link{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 9px 2px;color:#88b69a;text-decoration:none;font-size:12px}
+.admin-site-link span{display:flex;align-items:center;gap:8px}
+.admin-main-column{flex:1;min-width:0;display:flex;flex-direction:column}
+.admin-topbar{height:70px;min-height:70px;position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 30px;background:rgba(7,20,15,.94);backdrop-filter:blur(14px);border-bottom:1px solid #20392b}
+.admin-breadcrumb{display:flex;align-items:center;gap:10px;min-width:0;color:#7fa58d;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.admin-breadcrumb svg{color:#557b62}
+.admin-breadcrumb strong{color:#eaf2ec;font-size:14px;letter-spacing:0;text-transform:none;white-space:nowrap}
+.admin-top-actions{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.admin-role-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #31543e;background:#102b1d;color:#a9dabb;border-radius:99px;padding:6px 11px;font-size:10px;font-weight:700;letter-spacing:.12em}
+.admin-role-dot{width:7px;height:7px;border-radius:50%;background:#65d895;box-shadow:0 0 0 3px #65d89520}
+.admin-top-link{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #294636;border-radius:8px;color:#b9cdbf;text-decoration:none;font-size:12px}
+.admin-topbar .btn{min-height:35px;padding:7px 12px;font-size:12px}
+.admin-content{width:100%;padding:29px 30px 52px;min-width:0}
+.admin-layout h1,.admin-layout h2,.admin-layout h3,.admin-layout h4{font-family:inherit;letter-spacing:0;color:#eff6f0}
+.admin-layout h1{font-size:28px;line-height:1.2;margin:0 0 8px;font-weight:680}
+.admin-layout h2{font-size:23px;line-height:1.25;margin:0 0 8px;font-weight:670}
+.admin-layout h3{font-size:16px;font-weight:650}
+.admin-layout p{color:#a9beb0}
+.admin-page{display:flex;flex-direction:column;gap:18px}
+.admin-page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:1px}
+.admin-page-heading p{margin:4px 0 0;max-width:720px}
+.admin-kicker{margin:0 0 7px!important;color:#79c99a!important;font-size:10px!important;font-weight:750;letter-spacing:.2em;text-transform:uppercase}
+.admin-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.admin-stat-card{min-width:0;padding:16px 17px;border:1px solid #244331;border-radius:10px;background:#0d2419;box-shadow:0 8px 24px rgba(0,0,0,.10)}
+.admin-stat-label{display:block;color:#8bad98;font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase}
+.admin-stat-value{display:block;margin-top:8px;color:#f1f7f2;font-size:29px;line-height:1.15;font-weight:650;font-variant-numeric:tabular-nums}
+.admin-filter-panel,.admin-panel{padding:18px;border:1px solid #244331;border-radius:11px;background:#0b2117}
+.admin-filter-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.admin-filter-heading .admin-kicker{margin:0!important}
+.admin-filter-count{color:#8cac98;font-size:11px}
+.admin-filter-grid{display:grid;grid-template-columns:minmax(220px,1.5fr) repeat(2,minmax(150px,1fr));gap:11px;align-items:center}
+.admin-filter-grid-wide{grid-template-columns:minmax(210px,1.5fr) repeat(3,minmax(140px,1fr))}
+.admin-layout input:not([type=checkbox]):not([type=radio]),.admin-layout select,.admin-layout textarea{background:#06150e;color:#e6efe8;border:1px solid #2a4b37;border-radius:8px;font:inherit;padding:10px 12px;max-width:100%}
+.admin-layout input::placeholder,.admin-layout textarea::placeholder{color:#789483}
+.admin-layout input:focus,.admin-layout select:focus,.admin-layout textarea:focus{outline:none;border-color:#63b985;box-shadow:0 0 0 3px #63b98520}
+.admin-toolbar-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:13px}
+.admin-layout .toolbar{gap:9px}
+.admin-layout .btn{background:#2e8054;color:#f1fbf4;border:1px solid #438d63;border-radius:8px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:650;letter-spacing:0;text-transform:none;box-shadow:none}
+.admin-layout .btn:hover{background:#379765}
+.admin-layout .btn.ghost{background:transparent;color:#b9d0c0;border:1px solid #345741}
+.admin-layout .btn.ghost:hover{background:#143323;color:#f2f8f3;border-color:#4c805c}
+.admin-layout .btn.red{background:#612f35;border-color:#8a454d;color:#ffe8ea}
+.admin-layout .btn.red:hover{background:#793941}
+.admin-layout .btn:disabled{opacity:.45}
+.admin-layout .card{background:#0d2419;color:#dce9df;border:1px solid #244331;border-radius:10px;border-left:1px solid #244331;box-shadow:none}
+.admin-layout .card p,.admin-layout .card span{color:inherit}
+.admin-layout .card b.stat{color:#f0f7f1;font-size:30px}
+.admin-layout .tag{background:#173526;color:#b9dfc6;border:1px solid #2c5a3e;border-radius:99px;font-family:inherit;font-size:10px;letter-spacing:.04em}
+.admin-layout .tag.g{background:#143d29;color:#a8e7bd;border-color:#2e7b4d}
+.admin-layout .tag.r{background:#3e2228;color:#f1b7be;border-color:#75404a}
+.admin-layout .msg{color:#91d5a9}
+.admin-layout .err{background:#3b2026;border-left-color:#cb6977;color:#ffdce0;border-radius:6px}
+.admin-layout .tw{border:1px solid #244331;border-radius:10px;background:#0b2117}
+.admin-layout table{color:#dce9df;font-size:13px}
+.admin-layout td,.admin-layout th{border-bottom:1px solid #203d2c;padding:12px 11px}
+.admin-layout th{color:#89ae97;background:#10291d;font-family:inherit;font-size:10px;letter-spacing:.13em}
+.admin-layout tbody tr:hover{background:#10281c}
+.application-card{margin:0 0 12px!important;padding:17px 18px}
+.application-card .dossier-grid{background:#081a12;border:1px solid #244331;border-radius:8px}
+.application-card .dossier-q{border-top-color:#2a4635}
+.application-card .dossier-q b{color:#83c99d}
+.application-card .review-k{color:#84b998}
+.admin-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:190px;padding:30px;border:1px solid #244331;border-radius:11px;background:#0b2117;text-align:center}
+.admin-empty-state svg{color:#83b897}
+.admin-empty-state strong{color:#e8f2eb;font-size:15px}
+.admin-empty-state p{margin:0;color:#8da997;font-size:13px}
+.admin-activity{margin-top:20px}
+.admin-activity-list{display:grid;gap:0}
+.admin-activity-row{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid #203d2c;color:#d9e7dd;font-size:13px}
+.admin-activity-row:last-child{border-bottom:0}
+.admin-activity-row time{color:#819d8b;white-space:nowrap;font-size:11px}
+.admin-layout .box{background:#0d2419;color:#e8f0e9;border:1px solid #244331;box-shadow:none;border-radius:12px}
+@media(max-width:1100px){.admin-sidebar{width:232px;min-width:232px}.admin-content{padding:24px 22px}.admin-topbar{padding:0 22px}.admin-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){
+ .admin-layout{display:block}.admin-sidebar{position:relative;width:100%;min-width:0;height:auto;padding:12px 12px 8px}
+ .admin-brand{padding:3px 7px 12px}.admin-nav-scroll{display:flex;gap:13px;overflow-x:auto;overflow-y:hidden;padding:9px 0 5px}
+ .admin-nav-group{display:flex;align-items:center;gap:4px;margin:0;flex:0 0 auto}.admin-nav-group-title{display:none}
+ .admin-nav-item{width:auto;min-height:38px;white-space:nowrap;padding:8px 10px;font-size:12px}
+ .admin-nav-item.active:before{top:auto;right:8px;bottom:0;left:8px;width:auto;height:2px}
+ .admin-sidebar-footer{display:none}.admin-topbar{position:relative;height:auto;min-height:58px;padding:10px 14px;align-items:flex-start;flex-direction:column;gap:9px}
+ .admin-top-actions{flex-wrap:wrap}.admin-content{padding:20px 14px 36px}
+ .admin-page-heading{flex-direction:column}.admin-filter-grid,.admin-filter-grid-wide{grid-template-columns:1fr}
+}
+@media(max-width:480px){.admin-stat-grid{grid-template-columns:1fr 1fr;gap:8px}.admin-stat-card{padding:12px}.admin-stat-value{font-size:24px}.admin-top-link{padding:7px 9px}}
+
+`;
 
 function parseCSV(t:string){const rows:string[][]=[];let r:string[]=[],c='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'&&t[i+1]==='"'){c+='"';i++}else if(ch==='"')q=false;else c+=ch}else if(ch==='"')q=true;else if(ch===','){r.push(c);c=''}else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';if(r.some(x=>x.trim()))rows.push(r);r=[]}else c+=ch}r.push(c);if(r.some(x=>x.trim()))rows.push(r);return rows}
 
@@ -635,7 +744,7 @@ function AppCard({a,me,reload}:any){
   const rec=a.recommendation;const admin=me.role==='admin';
   const proofCount=Array.isArray(a.proof_urls)?a.proof_urls.length:0;
 
-  return <div className="card" style={{marginBottom:14}}>
+  return <div className="card application-card">
     <div className="toolbar" style={{margin:0,justifyContent:'space-between'}}>
       <div className="toolbar" style={{margin:0}}>
         <b style={{fontSize:'1.25rem'}}>{a.full_name}</b>
@@ -729,15 +838,11 @@ function Applications({me}:any){
   const [tr,setTr]=useState('all');
   const [avail,setAvail]=useState('all');
   const [err,setErr]=useState('');
-
   const load=useCallback(async()=>{
     const {data,error}=await sb.from('applications').select('*').order('created_at',{ascending:false});
-    setErr(error?error.message:'');
-    setRows(data||[]);
+    setErr(error?error.message:'');setRows(data||[]);
   },[]);
-
   useEffect(()=>{load()},[load]);
-
   const shown=useMemo(()=>rows.filter(r=>{
     if(st!=='all'&&r.status!==st)return false;
     if(tr!=='all'&&r.track!==tr)return false;
@@ -746,44 +851,32 @@ function Applications({me}:any){
     if(q&&!JSON.stringify(r).toLowerCase().includes(q.toLowerCase()))return false;
     return true;
   }),[rows,st,tr,avail,q]);
-
   const downloadCsv=()=>{
     const csv=exportApplicationsToCsv(shown);
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    a.download='security-applications.csv';
-    a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='security-applications.csv';a.click();
   };
-
-  return <div>
-    <h2>Applications</h2>
-    <p>{me.role==='admin'?'Review Security applications, inspect uploaded proofs, and record the final Executive Board decision.':'Recommend accepting or rejecting. The Executive Board and IT make the final decision.'}</p>
-    <div className="toolbar">
-      <input placeholder="Search name, school, email..." value={q} onChange={e=>setQ(e.target.value)} aria-label="Search"/>
-      <select value={st} onChange={e=>setSt(e.target.value)} aria-label="Status">
-        <option value="pending">Pending</option>
-        <option value="accepted">Accepted</option>
-        <option value="rejected">Rejected</option>
-        <option value="all">All statuses</option>
-      </select>
-      <select value={avail} onChange={e=>setAvail(e.target.value)} aria-label="Availability">
-        <option value="all">All availability</option>
-        <option value="yes">Attends all days</option>
-        <option value="no">Cannot attend all days</option>
-      </select>
-      {me.role==='admin'&&<select value={tr} onChange={e=>setTr(e.target.value)} aria-label="Team">
-        <option value="all">All teams</option>
-        <option>Security</option>
-        <option>Volunteers</option>
-      </select>}
-      <button className="btn ghost" onClick={load}>Refresh</button>
-      <button className="btn ghost" onClick={downloadCsv} disabled={!shown.length}>Export CSV</button>
-      <span className="msg">{err}</span>
+  const counts={total:rows.length,pending:rows.filter(r=>r.status==='pending').length,accepted:rows.filter(r=>r.status==='accepted').length,rejected:rows.filter(r=>r.status==='rejected').length};
+  return <div className="admin-page">
+    <div className="admin-page-heading"><div><p className="admin-kicker">{me.role==='admin'?'OPERATIONS / EXECUTIVE REVIEW':'DEPARTMENT REVIEW / RECOMMENDATIONS'}</p><h1>Applications</h1><p>{me.role==='admin'?'Review staff applications, inspect submitted proof and record the final Executive Board decision.':'Review applications assigned to your department and recommend acceptance or rejection.'}</p></div><button className="btn ghost" onClick={load}>Refresh applications</button></div>
+    <div className="admin-stat-grid">
+      <div className="admin-stat-card"><span className="admin-stat-label">Total submissions</span><strong className="admin-stat-value">{counts.total}</strong></div>
+      <div className="admin-stat-card"><span className="admin-stat-label">Pending review</span><strong className="admin-stat-value">{counts.pending}</strong></div>
+      <div className="admin-stat-card"><span className="admin-stat-label">Accepted</span><strong className="admin-stat-value">{counts.accepted}</strong></div>
+      <div className="admin-stat-card"><span className="admin-stat-label">Rejected</span><strong className="admin-stat-value">{counts.rejected}</strong></div>
     </div>
-    {shown.length?shown.map(a=><AppCard key={a.id+a.status+String(a.recommendation)} a={a} me={me} reload={load}/>):<p>No applications match the current filter.</p>}
+    <div className="admin-filter-panel">
+      <div className="admin-filter-heading"><span className="admin-kicker">APPLICATION DIRECTORY</span><span className="admin-filter-count">Showing {shown.length} of {rows.length}</span></div>
+      <div className={'admin-filter-grid'+(me.role==='admin'?' admin-filter-grid-wide':'')}>
+        <input placeholder="Search name, email, phone, school..." value={q} onChange={e=>setQ(e.target.value)} aria-label="Search applications"/>
+        <select value={st} onChange={e=>setSt(e.target.value)} aria-label="Status"><option value="pending">Pending applications</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="all">All statuses</option></select>
+        <select value={avail} onChange={e=>setAvail(e.target.value)} aria-label="Availability"><option value="all">All availability</option><option value="yes">Attends all days</option><option value="no">Cannot attend all days</option></select>
+        {me.role==='admin'&&<select value={tr} onChange={e=>setTr(e.target.value)} aria-label="Team"><option value="all">All departments</option><option>Security</option><option>Volunteers</option></select>}
+      </div>
+      <div className="admin-toolbar-actions"><button className="btn ghost" onClick={load}>Refresh</button><button className="btn" onClick={downloadCsv} disabled={!shown.length}>Export CSV</button>{err&&<span className="err" role="alert">{err}</span>}</div>
+    </div>
+    {shown.length?shown.map(a=><AppCard key={a.id+a.status+String(a.recommendation)} a={a} me={me} reload={load}/>):<div className="admin-empty-state"><FileText size={25} strokeWidth={1.6}/><strong>{err?'Applications could not be loaded':'No applications found'}</strong><p>{err?'Check the database connection and access permissions, then refresh.':'Applications that match your current filters will appear here.'}</p></div>}
   </div>;
 }
-
 function Crud({table,cols,order='created_at',log,pre}:any){
   const [rows,setRows]=useState<any[]>([]);const [q,setQ]=useState('');const [neu,setNeu]=useState<any>({});const [msg,setMsg]=useState('');
   const load=useCallback(async()=>{const {data,error}=await sb.from(table).select('*').order(order,{ascending:order!=='created_at'});if(error)setMsg(error.message);setRows(data||[])},[table,order]);
@@ -853,21 +946,51 @@ function Overview(){
     const [r,p,pend,wait]=await Promise.all([c('roster'),c('profiles'),c('applications',(q:any)=>q.eq('status','pending')),c('applications',(q:any)=>q.eq('status','pending').not('recommendation','is',null))]);
     setN({r,p,w:Math.max(r-p,0),pend,wait});
     const {data}=await sb.from('audit_log').select('*').order('created_at',{ascending:false}).limit(8);setRecent(data||[])})()},[]);
-  return <div><h2>Overview</h2><div className="cards"><div className="card"><b className="stat">{n.pend??'-'}</b>Pending applications</div><div className="card"><b className="stat">{n.wait??'-'}</b>Recommended, awaiting your decision</div><div className="card"><b className="stat">{n.r??'-'}</b>On the roster</div><div className="card"><b className="stat">{n.p??'-'}</b>Signed up</div><div className="card"><b className="stat">{n.w??'-'}</b>Not signed up yet</div></div>
-    <h3>Recent activity</h3>{recent.length?recent.map(x=><p key={x.id} style={{margin:'4px 0'}}>{new Date(x.created_at).toLocaleString()}: {x.action}</p>):<p>Nothing yet.</p>}</div>;
+  return <div className="admin-page">
+    <div className="admin-page-heading"><div><p className="admin-kicker">VERITAS MUN / ADMINISTRATION</p><h1>Executive overview</h1><p>A live view of team access, application activity and recent administration changes.</p></div></div>
+    <div className="admin-stat-grid">
+      <div className="admin-stat-card"><span className="admin-stat-label">Pending applications</span><strong className="admin-stat-value">{n.pend??'-'}</strong></div>
+      <div className="admin-stat-card"><span className="admin-stat-label">Awaiting final decision</span><strong className="admin-stat-value">{n.wait??'-'}</strong></div>
+      <div className="admin-stat-card"><span className="admin-stat-label">On the team roster</span><strong className="admin-stat-value">{n.r??'-'}</strong></div>
+      <div className="admin-stat-card"><span className="admin-stat-label">Registered accounts</span><strong className="admin-stat-value">{n.p??'-'}</strong></div>
+    </div>
+    <div className="admin-panel admin-activity"><p className="admin-kicker">ADMINISTRATION / ACTIVITY</p><h2>Recent activity</h2>
+      {recent.length?<div className="admin-activity-list">{recent.map(x=><div className="admin-activity-row" key={x.id}><span>{x.action}</span><time>{new Date(x.created_at).toLocaleString()}</time></div>)}</div>:<div className="admin-empty-state"><History size={22}/><strong>No activity recorded yet</strong><p>Changes made in the admin portal will appear here.</p></div>}
+    </div>
+  </div>;
 }
-
 function Admin({me}:any){
-  const admin=me.role==='admin';const tabs=admin?['Overview','Applications','Roster','Accounts','Site content','Team cards','Announcements','Audit log']:['Applications'];
+  const admin=me.role==='admin';
+  const tabs=admin?['Overview','Applications','Roster','Accounts','Site content','Team cards','Announcements','Audit log']:['Applications'];
   const [tab,setTab]=useState(tabs[0]);
   const log=(action:string,details:any={})=>sb.from('audit_log').insert({user_id:me.id,action,details});
-  return <div className="wrap"><nav className="side"><div className="brand">{admin?'Veritas Admin':'Veritas Review'}</div>{tabs.map(t=><button key={t} className={t===tab?'on':''} onClick={()=>setTab(t)}>{t}</button>)}<a href="/account">My account</a><a href="/">View site</a><button onClick={()=>sb.auth.signOut()}>Sign out</button></nav>
-    <main className="main">{tab==='Overview'&&<Overview/>}{tab==='Applications'&&<Applications me={me}/>}{tab==='Roster'&&<Roster log={log}/>}{tab==='Accounts'&&<Accounts log={log}/>}{tab==='Site content'&&<Content log={log}/>}
-    {tab==='Team cards'&&<div><h2>Team cards</h2><p>People shown on the public Secretariat section. Lower sort order shows first.</p><Crud table="team_cards" order="sort_order" log={log} cols={[{k:'sort_order',l:'Order',t:'num'},{k:'full_name',l:'Name'},{k:'title',l:'Title'},{k:'photo_url',l:'Photo URL'},{k:'visible',l:'Visible',t:'bool'}]}/></div>}
-    {tab==='Announcements'&&<div><h2>Announcements</h2><p>Audience: all, a department name, or heads.</p><Crud table="announcements" log={log} cols={[{k:'title',l:'Title'},{k:'body',l:'Message',t:'area'},{k:'audience',l:'Audience'}]}/></div>}
-    {tab==='Audit log'&&<div><h2>Audit log</h2><Crud table="audit_log" log={()=>{}} cols={[{k:'created_at',l:'When'},{k:'action',l:'Action'}]}/></div>}</main></div>;
+  const navGroups=admin?[
+    {title:'Operations',items:[{label:'Overview',icon:LayoutDashboard},{label:'Applications',icon:ClipboardList}]},
+    {title:'Team management',items:[{label:'Roster',icon:Users},{label:'Accounts',icon:UserRound},{label:'Announcements',icon:Megaphone},{label:'Audit log',icon:History}]},
+    {title:'Website',items:[{label:'Site content',icon:Globe},{label:'Team cards',icon:Users}]}
+  ]:[{title:'Department review',items:[{label:'Applications',icon:ClipboardList}]}];
+  const initials=(me.full_name||'VM').split(' ').filter(Boolean).slice(0,2).map((part:string)=>part[0]).join('').toUpperCase();
+  return <div className="admin-layout">
+    <aside className="admin-sidebar">
+      <div className="admin-brand"><div className="admin-wordmark">VERITAS <span>MUN</span></div><div className="admin-brand-sub">ADMINISTRATION PORTAL</div></div>
+      <div className="admin-nav-scroll">{navGroups.map(group=><div className="admin-nav-group" key={group.title}><div className="admin-nav-group-title">{group.title}</div>{group.items.map(item=>{const Icon=item.icon;return <button key={item.label} type="button" className={'admin-nav-item'+(tab===item.label?' active':'')} onClick={()=>setTab(item.label)} aria-current={tab===item.label?'page':undefined}><Icon size={17} strokeWidth={1.8}/><span>{item.label}</span></button>})}</div>)}</div>
+      <div className="admin-sidebar-footer"><div className="admin-profile"><div className="admin-avatar">{initials}</div><div className="admin-profile-copy"><strong>{me.full_name||'Team member'}</strong><span>{me.position||me.role}</span></div></div><a className="admin-site-link" href="/"><span><Globe size={15}/>Conference website</span><ExternalLink size={14}/></a></div>
+    </aside>
+    <div className="admin-main-column">
+      <header className="admin-topbar"><div className="admin-breadcrumb"><span>VERITAS MUN</span><ChevronRight size={14}/><strong>{tab}</strong></div><div className="admin-top-actions"><span className="admin-role-pill"><span className="admin-role-dot"/>{admin?'ADMIN':'DEPARTMENT HEAD'}</span><a className="admin-top-link" href="/account">My account</a><button className="btn ghost" onClick={()=>sb.auth.signOut()}><LogOut size={14}/>Sign out</button></div></header>
+      <main className="admin-content">
+        {tab==='Overview'&&<Overview/>}
+        {tab==='Applications'&&<Applications me={me}/>}
+        {tab==='Roster'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / DIRECTORY</p><h1>Team roster</h1><p>Manage team records and import the approved staff list.</p></div></div><Roster log={log}/></div>}
+        {tab==='Accounts'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / ACCESS</p><h1>Accounts</h1><p>Manage registered team accounts, roles and active access.</p></div></div><Accounts log={log}/></div>}
+        {tab==='Site content'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / CONTENT</p><h1>Site content</h1><p>Edit the copy and sections displayed on the public Veritas MUN website.</p></div></div><Content log={log}/></div>}
+        {tab==='Team cards'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / SECRETARIAT</p><h1>Team cards</h1><p>Manage the Secretariat cards shown on the public Veritas MUN website.</p></div></div><Crud table="team_cards" order="sort_order" log={log} cols={[{k:'sort_order',l:'Order',t:'num'},{k:'full_name',l:'Name'},{k:'title',l:'Title'},{k:'photo_url',l:'Photo URL'},{k:'visible',l:'Visible',t:'bool'}]}/></div>}
+        {tab==='Announcements'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / COMMUNICATIONS</p><h1>Announcements</h1><p>Share updates with the whole team, a department, or department heads.</p></div></div><Crud table="announcements" log={log} cols={[{k:'title',l:'Title'},{k:'body',l:'Message',t:'area'},{k:'audience',l:'Audience'}]}/></div>}
+        {tab==='Audit log'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">ADMINISTRATION / HISTORY</p><h1>Audit log</h1><p>A record of administrative changes.</p></div></div><Crud table="audit_log" log={()=>{}} cols={[{k:'created_at',l:'When'},{k:'action',l:'Action'}]}/></div>}
+      </main>
+    </div>
+  </div>;
 }
-
 function App(){
   const [s,setS]=useState<any>(undefined);const [me,setMe]=useState<any>(undefined);const [rec,setRec]=useState(false);
   const path=location.pathname.replace(/\/$/,'');
