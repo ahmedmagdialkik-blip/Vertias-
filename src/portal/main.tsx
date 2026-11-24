@@ -1,9 +1,27 @@
 import {createRoot} from 'react-dom/client';
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
+import {
+  buildProofStoragePath,
+  countWords,
+  EMPTY_SECURITY_DRAFT,
+  exportApplicationsToCsv,
+  formatFileSize,
+  isLikelySchoolAbbreviation,
+  MAX_PROOF_FILES,
+  SECURITY_QUESTIONS,
+  validateCompleteSecurityApplication,
+  validateProofFiles,
+  validateSecurityStep,
+  type SecurityApplicationDraft,
+  type SecurityGrade,
+  type SecurityProofMeta
+} from '../utils/securityApplicationLogic';
 import {LayoutDashboard,ClipboardList,Users,UserRound,Megaphone,History,Globe,ChevronRight,ExternalLink,LogOut,FileText} from 'lucide-react';
 
 // Publishable key: safe in the browser. All access is enforced by Row Level Security in the database.
+const PROOFS_BUCKET='application-proofs';
+
 const sb:any=createClient('https://iaionntcwjblvndmdesw.supabase.co','sb_publishable_1Qg2Z-_1-QvviWwr-ZM9_w_3nmqnxX7');
 
 const css=`*{box-sizing:border-box}body{margin:0;background:#EDE6D6;color:#1A1217;font:18px 'Cormorant Garamond',Georgia,serif}
@@ -20,6 +38,75 @@ textarea{width:100%;min-height:90px}.btn{background:#1A1217;color:#EDE6D6;border
 .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.8rem;background:#1A121722;margin-left:6px;font-family:Cormorant Garamond,serif}.badge.g{background:#2F6B3433;color:#1F4A25}.badge.r{background:#8a2b2b33;color:#6b1f1f}
 .tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{background:none;border:1px solid #BAB1A0;padding:6px 14px;font:inherit;cursor:pointer;color:#1A1217}.tabs button.on{background:#1A1217;color:#EDE6D6}
 @media(max-width:760px){.wrap{flex-direction:column}.side{width:100%;display:flex;flex-wrap:wrap;gap:4px;padding:10px}.side .brand{width:100%;margin:4px}.side button,.side a{width:auto}.main{padding:16px}}
+/* Security Application (/apply) */
+.apply-shell{min-height:100vh;background:#1A1217;color:#EDE6D6;padding:26px 18px 64px}
+.apply-top{max-width:860px;margin:0 auto 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.apply-top a.brand-link{font-family:Cinzel,serif;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#EDE6D6;text-decoration:none;font-size:1rem}
+.apply-top a.back-link{color:#BAB1A0;text-decoration:none;border-bottom:1px solid #BAB1A055;padding:4px 0;font-size:1rem}
+.apply-top a.back-link:hover{color:#EDE6D6;border-color:#4F9A57}
+.apply-card{max-width:860px;margin:0 auto;background:#EDE6D6;color:#1A1217;border-top:4px solid #4F9A57;box-shadow:0 22px 54px rgba(0,0,0,0.45);padding:34px 36px}
+.apply-head{border-bottom:1px solid #1A121724;padding-bottom:18px;margin-bottom:24px}
+.apply-kicker{font-family:Cinzel,serif;font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:#2F6B34;margin:0 0 6px}
+.apply-title{margin:0;font-size:clamp(1.65rem,3.4vw,2.45rem);line-height:1.1}
+.apply-sub{margin:8px 0 0;color:#1A1217CC;font-size:1.12rem;max-width:58ch}
+.stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 26px}
+.step-btn{text-align:left;padding:10px 12px;border:1px solid #1A121728;background:#F7F2E6;color:#1A121799;cursor:pointer;border-radius:2px;font:inherit;transition:all .16s ease}
+.step-btn .sn{display:block;font-family:Cinzel,serif;font-size:.7rem;letter-spacing:.12em;color:#2F6B34}
+.step-btn .sl{display:block;font-weight:600;font-size:.98rem;line-height:1.2}
+.step-btn.is-current{background:#1A1217;color:#EDE6D6;border-color:#1A1217}
+.step-btn.is-current .sn{color:#4F9A57}
+.step-btn.is-done{border-color:#2F6B34;color:#1A1217}
+.step-panel{animation:stepFade .26s ease-out}
+@keyframes stepFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){.step-panel{animation:none}}
+.f-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label,.field legend{font-weight:600;font-size:1.05rem;color:#1A1217;padding:0}
+.req{color:#8a2b2b;margin-left:3px}
+.hint{font-size:.94rem;color:#1A1217A6;margin:0}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.word-count{font-family:Cinzel,serif;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:#1A121799}
+.word-count.is-met{color:#2F6B34;font-weight:600}
+fieldset.choice-group{border:0;padding:0;margin:0 0 16px}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:6px}
+.choice{position:relative;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#FAF6EE;border:1px solid #1A121738;border-radius:2px;cursor:pointer;min-height:44px;transition:border-color .15s ease,background-color .15s ease}
+.choice:hover{border-color:#2F6B34}
+.choice.is-on{background:#2F6B3418;border-color:#2F6B34;font-weight:600}
+.choice input{margin:0;width:18px;height:18px;accent-color:#2F6B34}
+.dropzone{border:1.5px dashed #2F6B3488;background:#FAF6EE;padding:24px 18px;text-align:center;border-radius:2px;transition:background-color .16s ease,border-color .16s ease}
+.dropzone.is-drag{background:#2F6B3418;border-color:#2F6B34}
+.proof-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:14px}
+.proof-item{background:#FAF6EE;border:1px solid #1A121728;padding:10px;display:flex;flex-direction:column;gap:8px;border-radius:2px}
+.proof-thumb{width:100%;height:120px;object-fit:cover;background:#EAE3D3;display:block}
+.proof-doc{height:120px;display:flex;align-items:center;justify-content:center;background:#EAE3D3;font-family:Cinzel,serif;font-size:.9rem;letter-spacing:.08em;color:#1A1217}
+.proof-meta{font-size:.9rem;line-height:1.3;word-break:break-word}
+.review-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#FAF6EE;border:1px solid #1A121724;padding:16px;margin-bottom:18px}
+.review-row{margin-bottom:10px}
+.review-k{font-family:Cinzel,serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#2F6B34;display:block}
+.review-v{white-space:pre-wrap;word-break:break-word}
+.progress-track{height:6px;background:#1A121722;margin:10px 0;overflow:hidden}
+.progress-fill{height:100%;background:#2F6B34;transition:width .2s ease}
+.apply-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px;padding-top:18px;border-top:1px solid #1A121724}
+
+/* Admin dossier + proof viewer */
+.dossier-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 18px;background:#FAF6EE;padding:14px;border:1px solid #1A12171E;margin:12px 0}
+.dossier-q{margin:12px 0;padding-top:10px;border-top:1px solid #1A12171A}
+.dossier-q b{font-family:Cinzel,serif;font-size:.8rem;letter-spacing:.05em;text-transform:uppercase;color:#2F6B34;display:block;margin-bottom:4px}
+.lightbox{position:fixed;inset:0;background:rgba(26,18,23,0.92);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.lightbox img{max-width:94vw;max-height:82vh;object-fit:contain;border:2px solid #EDE6D6}
+.lightbox-bar{margin-top:14px;display:flex;gap:12px;align-items:center;color:#EDE6D6}
+
+@media(max-width:760px){
+  .wrap{flex-direction:column}
+  .side{width:100%;display:flex;flex-wrap:wrap;gap:4px;padding:10px}
+  .side .brand{width:100%;margin:4px}
+  .side button,.side a{width:auto}
+  .main{padding:16px}
+  .apply-card{padding:22px 16px}
+  .stepper{grid-template-columns:1fr 1fr}
+  .f-grid,.review-grid{grid-template-columns:1fr}
+}
+
 /* Veritas administration dashboard: Willow-inspired structure, Veritas palette */
 .admin-layout{min-height:100vh;display:flex;background:#EDE6D6;color:#1A1217;font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .admin-sidebar{width:258px;min-width:258px;height:100vh;position:sticky;top:0;display:flex;flex-direction:column;overflow:hidden;background:#1A1217;border-right:1px solid #51464a;padding:19px 13px 13px;color:#EDE6D6}
@@ -137,6 +224,29 @@ textarea{width:100%;min-height:90px}.btn{background:#1A1217;color:#EDE6D6;border
 function parseCSV(t:string){const rows:string[][]=[];let r:string[]=[],c='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'&&t[i+1]==='"'){c+='"';i++}else if(ch==='"')q=false;else c+=ch}else if(ch==='"')q=true;else if(ch===','){r.push(c);c=''}else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';if(r.some(x=>x.trim()))rows.push(r);r=[]}else c+=ch}r.push(c);if(r.some(x=>x.trim()))rows.push(r);return rows}
 
 // ---------- Sign in / create account (email + password, no email confirmation step) ----------
+function makeSubmissionId(){
+  if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
+  const bytes=new Uint8Array(16);
+  if(typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function')crypto.getRandomValues(bytes);
+  else for(let i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);
+  bytes[6]=(bytes[6]&0x0f)|0x40;
+  bytes[8]=(bytes[8]&0x3f)|0x80;
+  const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+  return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+}
+interface LocalProofFile{
+  id:string;
+  file:File;
+  previewUrl:string|null;
+}
+const STEP_LABELS=[
+  {n:'01',title:'Applicant Details'},
+  {n:'02',title:'Experience & Proof'},
+  {n:'03',title:'Security Questions'},
+  {n:'04',title:'Review & Submit'}
+] as const;
+const GRADE_OPTIONS:readonly SecurityGrade[]=['10','11','12','First Year University'];
+
 function Auth({recovery}:any){
   const [mode,setMode]=useState<string>(recovery?'reset':'in');
   const [email,setEmail]=useState('');const [pw,setPw]=useState('');const [pw2,setPw2]=useState('');const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);
@@ -162,20 +272,415 @@ function Auth({recovery}:any){
 }
 
 // ---------- Public application form (/apply) ----------
+
 function Apply(){
+  const [track,setTrack]=useState<'Security'|'Volunteers'>('Security');
+  return track==='Security'
+    ? <SecurityApply onVolunteer={()=>setTrack('Volunteers')}/>
+    : <VolunteerApply onSecurity={()=>setTrack('Security')}/>;
+}
+
+function VolunteerApply({onSecurity}:any){
   const [f,setF]=useState<any>({track:'Volunteers'});const [msg,setMsg]=useState('');const [done,setDone]=useState(false);const [busy,setBusy]=useState(false);
   const set=(k:string)=>(e:any)=>setF({...f,[k]:e.target.value});
   const submit=async(e:any)=>{e.preventDefault();if(f.website)return;setBusy(true);
     const {error}=await sb.from('applications').insert({track:f.track,full_name:(f.full_name||'').trim(),email:(f.email||'').trim().toLowerCase(),phone:f.phone,school:f.school,grade:f.grade,experience:f.experience,why:f.why});
     setBusy(false);if(error)setMsg(error.code==='23505'?'You have already applied to this team.':'Something went wrong. Check your details and try again.');else setDone(true)};
   if(done)return <div className="box"><h2>Thank you</h2><p>Your application was received. The team will review it and get back to you.</p><a className="btn" href="/">Back to the site</a></div>;
-  return <form className="box" onSubmit={submit} style={{maxWidth:560}}><h2 style={{margin:0}}>Apply to join</h2><p>Applications are reviewed by the team head and then decided by the Secretariat.</p>
-    <select value={f.track} onChange={set('track')} aria-label="Team"><option>Volunteers</option><option>Security</option></select>
+  return <div><div style={{maxWidth:560,margin:'24px auto 0',textAlign:'right'}}><button type="button" className="btn ghost" onClick={onSecurity}>Apply for Security</button></div><form className="box" onSubmit={submit} style={{maxWidth:560}}><h2 style={{margin:0}}>Apply to join</h2><p>Applications are reviewed by the team head and then decided by the Secretariat.</p>
+    
     <input required placeholder="Full name" onChange={set('full_name')} aria-label="Full name"/><input required type="email" placeholder="Email" onChange={set('email')} aria-label="Email"/>
     <input placeholder="Phone" onChange={set('phone')} aria-label="Phone"/><input placeholder="School" onChange={set('school')} aria-label="School"/><input placeholder="Grade" onChange={set('grade')} aria-label="Grade"/>
     <textarea placeholder="Relevant experience" onChange={set('experience')} aria-label="Experience"/><textarea placeholder="Why do you want to join?" onChange={set('why')} aria-label="Why"/>
     <input name="website" tabIndex={-1} autoComplete="off" onChange={set('website')} style={{position:'absolute',left:'-9999px'}} aria-hidden="true"/>
-    <button className="btn" disabled={busy}>{busy?'Sending...':'Submit application'}</button><div className="msg" role="status">{msg}</div></form>;
+    <button className="btn" disabled={busy}>{busy?'Sending...':'Submit application'}</button><div className="msg" role="status">{msg}</div></form></div>;
+}
+
+function SecurityApply({onVolunteer}:any){
+  const [step,setStep]=useState<1|2|3|4>(1);
+  const [draft,setDraft]=useState<SecurityApplicationDraft>(EMPTY_SECURITY_DRAFT);
+  const [files,setFiles]=useState<LocalProofFile[]>([]);
+  const [honeypot,setHoneypot]=useState('');
+  const [dragActive,setDragActive]=useState(false);
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [uploadStatus,setUploadStatus]=useState('');
+  const [uploadPct,setUploadPct]=useState(0);
+  const [done,setDone]=useState<{name:string;email:string;proofCount:number}|null>(null);
+  const fileInputRef=useRef<HTMLInputElement|null>(null);
+
+  useEffect(()=>{
+    document.title='Veritas MUN | Apply as Security';
+  },[]);
+
+  useEffect(()=>{
+    return()=>{files.forEach(item=>{if(item.previewUrl)URL.revokeObjectURL(item.previewUrl)})};
+  },[files]);
+
+  const setField=<K extends keyof SecurityApplicationDraft>(key:K)=>(value:SecurityApplicationDraft[K])=>{
+    setErr('');
+    setDraft(prev=>({...prev,[key]:value}));
+  };
+
+  const addSelectedFiles=(incomingList:FileList|File[]|null)=>{
+    if(!incomingList||incomingList.length===0)return;
+    setErr('');
+    const incoming=Array.from(incomingList);
+    const combined=[...files.map(x=>x.file),...incoming];
+    const check=validateProofFiles(combined);
+    if(!check.valid){
+      setErr(check.error||'Unsupported file selection.');
+      return;
+    }
+    const additions:LocalProofFile[]=incoming.map(file=>({
+      id:makeSubmissionId(),
+      file,
+      previewUrl:file.type.startsWith('image/')?URL.createObjectURL(file):null
+    }));
+    setFiles(prev=>[...prev,...additions]);
+  };
+
+  const removeFile=(id:string)=>{
+    setErr('');
+    setFiles(prev=>{
+      const target=prev.find(f=>f.id===id);
+      if(target?.previewUrl)URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(f=>f.id!==id);
+    });
+  };
+
+  const goToStep=(next:1|2|3|4)=>{
+    setErr('');
+    if(next>step){
+      for(let s=step;s<next;s++){
+        const issue=validateSecurityStep(s as 1|2|3,draft,files.map(f=>f.file));
+        if(issue){setErr(issue);setStep(s as 1|2|3);return}
+      }
+    }
+    setStep(next);
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  const resetDraft=()=>{
+    files.forEach(f=>{if(f.previewUrl)URL.revokeObjectURL(f.previewUrl)});
+    setFiles([]);
+    setDraft(EMPTY_SECURITY_DRAFT);
+    setStep(1);
+    setErr('');
+  };
+
+  const submit=async(e:any)=>{
+    e.preventDefault();
+    if(honeypot)return;
+    const rawFiles=files.map(f=>f.file);
+    const fullError=validateCompleteSecurityApplication(draft,rawFiles);
+    if(fullError){setErr(fullError);return}
+
+    setBusy(true);
+    setErr('');
+    setUploadPct(5);
+    setUploadStatus(`Uploading proof 1 of ${rawFiles.length}...`);
+
+    const uploadedMeta:SecurityProofMeta[]=[];
+    try{
+      const submissionId=makeSubmissionId();
+      for(let i=0;i<rawFiles.length;i++){
+        const f=rawFiles[i];
+        setUploadStatus(`Uploading proof ${i+1} of ${rawFiles.length}: ${f.name}`);
+        const storagePath=buildProofStoragePath(submissionId,i,f.name);
+        const {error:upErr}=await sb.storage.from(PROOFS_BUCKET).upload(storagePath,f,{
+          cacheControl:'3600',
+          upsert:false,
+          contentType:f.type||undefined
+        });
+        if(upErr){
+          throw new Error(`Could not upload "${f.name}": ${upErr.message}`);
+        }
+        uploadedMeta.push({
+          name:f.name,
+          path:storagePath,
+          size:f.size,
+          mimeType:f.type||'application/octet-stream'
+        });
+        setUploadPct(Math.round(((i+1)/rawFiles.length)*85));
+      }
+
+      setUploadStatus('Submitting Security Department application...');
+      setUploadPct(92);
+
+      const normalizedEmail=draft.email.trim().toLowerCase();
+      const {error:insErr}=await sb.from('applications').insert({
+        track:'Security',
+        full_name:draft.full_name.trim(),
+        email:normalizedEmail,
+        school:draft.school.trim(),
+        phone:draft.phone.trim(),
+        emergency_contact:draft.emergency_contact.trim(),
+        gender:draft.gender,
+        grade:draft.grade,
+        experience:draft.experience.trim(),
+        proof_urls:uploadedMeta,
+        why:draft.why.trim(),
+        role_understanding:draft.role_understanding.trim(),
+        fight_precautions:draft.fight_precautions.trim(),
+        rules_enforcement:draft.rules_enforcement.trim(),
+        attend_all_days:draft.attend_all_days==='yes',
+        issues_note:draft.issues_note.trim()
+      });
+
+      if(insErr){
+        if(insErr.code==='23505'){
+          throw new Error('An application with this email for the Security Department has already been submitted.');
+        }
+        throw new Error(insErr.message||'Unable to save your application.');
+      }
+
+      setUploadPct(100);
+      setDone({name:draft.full_name.trim(),email:normalizedEmail,proofCount:uploadedMeta.length});
+    }catch(ex:any){
+      if(uploadedMeta.length){
+        await sb.storage.from(PROOFS_BUCKET).remove(uploadedMeta.map(item=>item.path));
+      }
+      setErr(ex?.message||'Something went wrong while submitting. Please try again.');
+    }finally{
+      setBusy(false);
+      setUploadStatus('');
+    }
+  };
+
+  if(done){
+    return <div className="apply-shell">
+      <div className="apply-top">
+        <a className="brand-link" href="/">Veritas MUN</a>
+        <button type="button" className="back-link" onClick={onVolunteer}>Apply for Volunteers</button><a className="back-link" href="/">Return to homepage</a>
+      </div>
+      <div className="apply-card" style={{maxWidth:640}}>
+        <p className="apply-kicker">Application Received</p>
+        <h1 className="apply-title">Thank you, {done.name}.</h1>
+        <p className="apply-sub">Your Security Department application and {done.proofCount} proof {done.proofCount===1?'file':'files'} under <b>{done.email}</b> have been recorded for review by the Security Head and the Executive Board.</p>
+        <div className="toolbar" style={{marginTop:24}}>
+          <a className="btn" href="/">Back to Veritas MUN</a>
+        </div>
+      </div>
+    </div>;
+  }
+
+  const abbrWarning=isLikelySchoolAbbreviation(draft.school);
+
+  return <div className="apply-shell">
+    <div className="apply-top">
+      <a className="brand-link" href="/">Veritas MUN</a>
+      <button type="button" className="back-link" onClick={onVolunteer}>Apply for Volunteers</button><a className="back-link" href="/">&larr; Back to Veritas MUN</a>
+    </div>
+
+    <form className="apply-card" onSubmit={submit} noValidate>
+      <div className="apply-head">
+        <p className="apply-kicker">Security Department</p>
+        <h1 className="apply-title">Apply as Security</h1>
+        <p className="apply-sub">Complete all four sections below. Your submitted answers and proof documents are securely stored in Veritas's private application system for review by the Security Head and Secretariat.</p>
+      </div>
+
+      <div className="stepper" role="tablist" aria-label="Application steps">
+        {STEP_LABELS.map((item,idx)=>{
+          const num=(idx+1) as 1|2|3|4;
+          const cls=num===step?'is-current':num<step?'is-done':'';
+          return <button key={item.n} type="button" className={'step-btn '+cls} onClick={()=>goToStep(num)} aria-current={num===step?'step':undefined}>
+            <span className="sn">Step {item.n}</span>
+            <span className="sl">{item.title}</span>
+          </button>;
+        })}
+      </div>
+
+      {step===1&&<div className="step-panel">
+        <div className="f-grid">
+          <div className="field">
+            <label htmlFor="sec-full-name">Full name<span className="req" aria-hidden="true">*</span></label>
+            <input id="sec-full-name" required value={draft.full_name} onChange={e=>setField('full_name')(e.target.value)} placeholder="Your full name" autoComplete="name"/>
+          </div>
+          <div className="field">
+            <label htmlFor="sec-email">Email<span className="req" aria-hidden="true">*</span></label>
+            <input id="sec-email" type="email" required value={draft.email} onChange={e=>setField('email')(e.target.value)} placeholder="you@example.com" autoComplete="email"/>
+          </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="sec-school">School Name (No abbreviations)<span className="req" aria-hidden="true">*</span></label>
+          <input id="sec-school" required value={draft.school} onChange={e=>setField('school')(e.target.value)} placeholder="Write your full school or university name"/>
+          {abbrWarning&&<div className="warn" role="status">Please write out your full school name without abbreviations (e.g., avoid short initials).</div>}
+        </div>
+
+        <div className="f-grid">
+          <div className="field">
+            <label htmlFor="sec-phone">Your Number<span className="req" aria-hidden="true">*</span></label>
+            <input id="sec-phone" type="tel" required value={draft.phone} onChange={e=>setField('phone')(e.target.value)} placeholder="ex: 05*****" autoComplete="tel"/>
+          </div>
+          <div className="field">
+            <label htmlFor="sec-emergency">Emergency Contact<span className="req" aria-hidden="true">*</span></label>
+            <input id="sec-emergency" required value={draft.emergency_contact} onChange={e=>setField('emergency_contact')(e.target.value)} placeholder="ex: 05*****/Mother"/>
+          </div>
+        </div>
+
+        <fieldset className="choice-group">
+          <legend>Gender<span className="req" aria-hidden="true">*</span></legend>
+          <div className="choices">
+            {(['Male','Female'] as const).map(opt=>(
+              <label key={opt} className={'choice'+(draft.gender===opt?' is-on':'')}>
+                <input type="radio" name="gender" value={opt} checked={draft.gender===opt} onChange={()=>setField('gender')(opt)}/>
+                <span>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="choice-group">
+          <legend>Grade<span className="req" aria-hidden="true">*</span></legend>
+          <div className="choices">
+            {GRADE_OPTIONS.map(opt=>(
+              <label key={opt} className={'choice'+(draft.grade===opt?' is-on':'')}>
+                <input type="radio" name="grade" value={opt} checked={draft.grade===opt} onChange={()=>setField('grade')(opt)}/>
+                <span>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </div>}
+
+      {step===2&&<div className="step-panel">
+        <div className="field">
+          <label htmlFor="sec-exp">Kindly list your previous experiences<span className="req" aria-hidden="true">*</span></label>
+          <p className="hint">ex: ICON MUN/Security/Best Security Member</p>
+          <textarea id="sec-exp" required value={draft.experience} onChange={e=>setField('experience')(e.target.value)} placeholder="ex: ICON MUN/Security/Best Security Member" style={{minHeight:130}}/>
+        </div>
+
+        <div className="field">
+          <label htmlFor="sec-proof-input">Proof of Experiences (Experience will not be counted without proof)<span className="req" aria-hidden="true">*</span></label>
+          <p className="hint">Upload up to 10 supported files. Max 100 MB per file. (Images: JPG, PNG, WEBP, HEIC; Documents: PDF, DOC, DOCX)</p>
+          <div
+            className={'dropzone'+(dragActive?' is-drag':'')}
+            onDragOver={e=>{e.preventDefault();setDragActive(true)}}
+            onDragLeave={()=>setDragActive(false)}
+            onDrop={e=>{e.preventDefault();setDragActive(false);addSelectedFiles(e.dataTransfer.files)}}
+          >
+            <input
+              ref={fileInputRef}
+              id="sec-proof-input"
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx"
+              style={{display:'none'}}
+              onChange={e=>{addSelectedFiles(e.target.files);e.target.value=''}}
+            />
+            <p style={{margin:'0 0 10px'}}>Drag and drop your certificates, badges, or proof screenshots here</p>
+            <button type="button" className="btn ghost" onClick={()=>fileInputRef.current?.click()}>Choose files ({files.length}/{MAX_PROOF_FILES})</button>
+          </div>
+
+          {files.length>0&&<div className="proof-grid">
+            {files.map(item=>(
+              <div className="proof-item" key={item.id}>
+                {item.previewUrl
+                  ?<img className="proof-thumb" src={item.previewUrl} alt={item.file.name}/>
+                  :<div className="proof-doc">{item.file.name.split('.').pop()?.toUpperCase()||'DOC'}</div>}
+                <div className="proof-meta">
+                  <strong>{item.file.name}</strong><br/>
+                  <span style={{opacity:.72}}>{formatFileSize(item.file.size)}</span>
+                </div>
+                <button type="button" className="btn red" style={{padding:'6px 10px',minHeight:36}} aria-label={'Remove '+item.file.name} onClick={()=>removeFile(item.id)}>Remove</button>
+              </div>
+            ))}
+          </div>}
+        </div>
+      </div>}
+
+      {step===3&&<div className="step-panel">
+        {SECURITY_QUESTIONS.map(q=>{
+          const val=draft[q.key];
+          const wc=countWords(val);
+          const met=wc>=q.targetWords;
+          return <div className="field" key={q.key}>
+            <div className="field-head">
+              <label htmlFor={'sec-'+q.key}>{q.label} ({q.targetWords} words)<span className="req" aria-hidden="true">*</span></label>
+              <span className={'word-count'+(met?' is-met':'')}>{wc} / {q.targetWords} words</span>
+            </div>
+            <textarea id={'sec-'+q.key} required value={val} onChange={e=>setField(q.key)(e.target.value)} placeholder="Write your response here..." style={{minHeight:118}}/>
+          </div>;
+        })}
+
+        <fieldset className="choice-group">
+          <legend>Will you be able to attend all days ?<span className="req" aria-hidden="true">*</span></legend>
+          <div className="choices">
+            {(['yes','no'] as const).map(opt=>(
+              <label key={opt} className={'choice'+(draft.attend_all_days===opt?' is-on':'')}>
+                <input type="radio" name="attend_all_days" value={opt} checked={draft.attend_all_days===opt} onChange={()=>setField('attend_all_days')(opt)}/>
+                <span style={{textTransform:'capitalize'}}>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="field">
+          <label htmlFor="sec-issues">Do you have any issues we should be aware of ? If not write N/A<span className="req" aria-hidden="true">*</span></label>
+          <textarea id="sec-issues" required value={draft.issues_note} onChange={e=>setField('issues_note')(e.target.value)} placeholder="Write N/A if there are no issues to report." style={{minHeight:90}}/>
+        </div>
+      </div>}
+
+      {step===4&&<div className="step-panel">
+        <div className="review-grid">
+          <div><span className="review-k">Full name</span><span className="review-v">{draft.full_name}</span></div>
+          <div><span className="review-k">Email</span><span className="review-v">{draft.email.trim().toLowerCase()}</span></div>
+          <div><span className="review-k">School Name</span><span className="review-v">{draft.school}</span></div>
+          <div><span className="review-k">Your Number</span><span className="review-v">{draft.phone}</span></div>
+          <div><span className="review-k">Emergency Contact</span><span className="review-v">{draft.emergency_contact}</span></div>
+          <div><span className="review-k">Gender &amp; Grade</span><span className="review-v">{draft.gender} · Grade {draft.grade}</span></div>
+          <div><span className="review-k">Attend all days?</span><span className="review-v" style={{textTransform:'capitalize'}}>{draft.attend_all_days}</span></div>
+          <div><span className="review-k">Proof files attached</span><span className="review-v">{files.length} file(s)</span></div>
+        </div>
+
+        <div className="review-row"><span className="review-k">Previous Experiences</span><span className="review-v">{draft.experience}</span></div>
+        {SECURITY_QUESTIONS.map(q=>(
+          <div className="review-row" key={q.key}>
+            <span className="review-k">{q.label} ({countWords(draft[q.key])} words)</span>
+            <span className="review-v">{draft[q.key]}</span>
+          </div>
+        ))}
+        <div className="review-row"><span className="review-k">Issues we should be aware of</span><span className="review-v">{draft.issues_note}</span></div>
+
+        <div className="toolbar" style={{marginTop:10}}>
+          <button type="button" className="btn ghost" onClick={()=>goToStep(1)}>Edit Details</button>
+          <button type="button" className="btn ghost" onClick={()=>goToStep(2)}>Edit Proof</button>
+          <button type="button" className="btn ghost" onClick={()=>goToStep(3)}>Edit Questions</button>
+        </div>
+      </div>}
+
+      <input name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={e=>setHoneypot(e.target.value)} style={{position:'absolute',left:'-9999px'}} aria-hidden="true"/>
+
+      {err&&<div className="err" role="alert">{err}</div>}
+      {busy&&<div role="status" style={{marginTop:12}}>
+        <div>{uploadStatus||'Submitting...'}</div>
+        <div className="progress-track"><div className="progress-fill" style={{width:uploadPct+'%'}}/></div>
+      </div>}
+
+      <div className="apply-actions">
+        <div className="toolbar" style={{margin:0}}>
+          {step>1?<button type="button" className="btn ghost" disabled={busy} onClick={()=>goToStep((step-1) as 1|2|3|4)}>Previous</button>:<button type="button" className="btn ghost" disabled={busy} onClick={resetDraft}>Clear draft</button>}
+        </div>
+        <div>
+          {step<4
+            ?<button type="button" className="btn" onClick={()=>goToStep((step+1) as 2|3|4)}>Continue</button>
+            :<button type="submit" className="btn" disabled={busy}>{busy?'Submitting...':'Submit Application'}</button>}
+        </div>
+      </div>
+    </form>
+  </div>;
+}
+
+function Account({me}:any){
+  const [ann,setAnn]=useState<any[]>([]);
+  useEffect(()=>{sb.from('announcements').select('*').order('created_at',{ascending:false}).then(({data}:any)=>setAnn(data||[]))},[]);
+  return <div className="main" style={{maxWidth:760,margin:'0 auto'}}>
+    <h1>Welcome, {(me.full_name||'').split(' ')[0]}</h1>
+    <div className="card"><b style={{fontSize:'1.4rem',display:'block'}}>{me.full_name}</b>{me.position||'Member'}{me.department?' \u00b7 '+me.department:''}<br/>Access level: {me.role}</div>
+    <h2>Announcements</h2>{ann.length?ann.map(a=><div className="card" key={a.id} style={{marginBottom:12}}><h3 style={{margin:0}}>{a.title}</h3><p style={{whiteSpace:'pre-wrap'}}>{a.body}</p></div>):<p>No announcements yet.</p>}
+    <div className="toolbar">{(me.role==='admin'||me.role==='head')&&<a className="btn" href="/admin">{me.role==='admin'?'Admin panel':'Review applications'}</a>}<a className="btn ghost" href="/">Back to site</a><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div></div>;
 }
 
 function Account({me}:any){
@@ -189,25 +694,146 @@ function Account({me}:any){
 }
 
 // ---------- Applications: heads recommend, Secretariat + IT decide ----------
+
+interface SignedProof{
+  name:string;
+  url:string;
+  size?:number;
+  mimeType?:string;
+  isImage:boolean;
+}
+function isImageProof(name:string,mime?:string){
+  if(mime&&mime.toLowerCase().startsWith('image/'))return true;
+  return /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(name);
+}
 function AppCard({a,me,reload}:any){
-  const [open,setOpen]=useState(false);const [note,setNote]=useState('');const [msg,setMsg]=useState('');
+  const [open,setOpen]=useState(false);
+  const [note,setNote]=useState('');
+  const [msg,setMsg]=useState('');
+  const [proofs,setProofs]=useState<SignedProof[]>([]);
+  const [proofLoading,setProofLoading]=useState(false);
+  const [lightbox,setLightbox]=useState<SignedProof|null>(null);
+
+  const loadSignedProofs=useCallback(async()=>{
+    const rawList=Array.isArray(a.proof_urls)?a.proof_urls:[];
+    if(!rawList.length){setProofs([]);return}
+    setProofLoading(true);
+    const out:SignedProof[]=[];
+    for(const item of rawList){
+      const path=typeof item==='string'?item:item?.path;
+      const name=typeof item==='string'?(path?.split('/').pop()||'Proof'):(item?.name||'Proof');
+      const mimeType=typeof item==='object'?item?.mimeType:'';
+      const size=typeof item==='object'?item?.size:undefined;
+      if(!path)continue;
+      const {data}=await sb.storage.from(PROOFS_BUCKET).createSignedUrl(path,3600);
+      if(data?.signedUrl){
+        out.push({name,url:data.signedUrl,size,mimeType,isImage:isImageProof(name,mimeType)});
+      }
+    }
+    setProofs(out);
+    setProofLoading(false);
+  },[a.proof_urls]);
+
+  useEffect(()=>{
+    if(open)loadSignedProofs();
+  },[open,loadSignedProofs]);
+
+  useEffect(()=>{
+    if(!lightbox)return;
+    const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')setLightbox(null)};
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[lightbox]);
+
   const rpc=async(fn:string,args:any)=>{const {error}=await sb.rpc(fn,args);setMsg(error?error.message:'Saved');if(!error){setNote('');reload()}};
   const rec=a.recommendation;const admin=me.role==='admin';
+  const proofCount=Array.isArray(a.proof_urls)?a.proof_urls.length:0;
+
   return <div className="card application-card">
-    <div className="toolbar" style={{margin:0}}><b style={{fontSize:'1.25rem',display:'inline'}}>{a.full_name}</b><span className="badge">{a.track}</span>
-      <span className={'badge '+(a.status==='accepted'?'g':a.status==='rejected'?'r':'')}>{a.status}</span>
-      {rec&&<span className={'badge '+(rec==='accept'?'g':'r')}>head recommends {rec}</span>}
-      <span style={{opacity:.6,fontSize:'.9rem'}}>{new Date(a.created_at).toLocaleDateString()}</span><button className="btn ghost" onClick={()=>setOpen(!open)}>{open?'Close':'Open'}</button></div>
-    {open&&<div>
-      <p>{a.email}{a.phone?' \u00b7 '+a.phone:''}<br/>{a.school}{a.grade?' \u00b7 Grade '+a.grade:''}</p>
-      {a.experience&&<p><b style={{fontSize:'1rem',display:'inline'}}>Experience:</b> <span style={{whiteSpace:'pre-wrap'}}>{a.experience}</span></p>}
-      {a.why&&<p><b style={{fontSize:'1rem',display:'inline'}}>Why:</b> <span style={{whiteSpace:'pre-wrap'}}>{a.why}</span></p>}
-      {a.recommendation_note&&<p><i>Head's note: {a.recommendation_note}</i></p>}{a.decision_note&&<p><i>Decision note: {a.decision_note}</i></p>}
-      <textarea placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} aria-label="Note"/>
+    <div className="toolbar" style={{margin:0,justifyContent:'space-between'}}>
+      <div className="toolbar" style={{margin:0}}>
+        <b style={{fontSize:'1.25rem'}}>{a.full_name}</b>
+        <span className="tag">{a.track||'Security'}</span>
+        <span className={'tag '+(a.status==='accepted'?'g':a.status==='rejected'?'r':'')}>{a.status}</span>
+        {rec&&<span className={'tag '+(rec==='accept'?'g':'r')}>Head recommends {rec}</span>}
+        {a.attend_all_days===false&&<span className="tag r">Cannot attend all days</span>}
+        {proofCount>0&&<span className="tag">{proofCount} proof{proofCount===1?'':'s'}</span>}
+      </div>
+      <div className="toolbar" style={{margin:0}}>
+        <span style={{opacity:.7,fontSize:'.92rem'}}>{new Date(a.created_at).toLocaleDateString()}</span>
+        <button className="btn ghost" onClick={()=>setOpen(!open)}>{open?'Close':'Open'}</button>
+      </div>
+    </div>
+
+    {open&&<div style={{marginTop:14}}>
+      <div className="dossier-grid">
+        <div><span className="review-k">Email</span>{a.email}</div>
+        <div><span className="review-k">Phone Number</span>{a.phone||'-'}</div>
+        <div><span className="review-k">Emergency Contact</span>{a.emergency_contact||'-'}</div>
+        <div><span className="review-k">School Name</span>{a.school||'-'}</div>
+        <div><span className="review-k">Gender &amp; Grade</span>{a.gender||'-'}{a.grade?' · Grade '+a.grade:''}</div>
+        <div><span className="review-k">Attend all days?</span>{a.attend_all_days===false?'No':'Yes'}</div>
+      </div>
+
+      {a.experience&&<div className="dossier-q"><b>Previous Experiences</b><div className="review-v">{a.experience}</div></div>}
+
+      <div className="dossier-q">
+        <b>Proof of Experiences ({proofCount})</b>
+        {proofLoading&&<p style={{margin:'6px 0'}}>Loading secure previews...</p>}
+        {!proofLoading&&proofs.length===0&&<p style={{margin:'6px 0',opacity:.75}}>No proof files attached.</p>}
+        {proofs.length>0&&<div className="proof-grid">
+          {proofs.map((p,idx)=>(
+            <div className="proof-item" key={p.name+idx}>
+              {p.isImage
+                ?<img className="proof-thumb" src={p.url} alt={p.name} style={{cursor:'zoom-in'}} onClick={()=>setLightbox(p)}/>
+                :<div className="proof-doc">{p.name.split('.').pop()?.toUpperCase()||'FILE'}</div>}
+              <div className="proof-meta">
+                <strong>{p.name}</strong>
+                {p.size?<div style={{opacity:.72}}>{formatFileSize(p.size)}</div>:null}
+              </div>
+              <div className="toolbar" style={{margin:0}}>
+                {p.isImage&&<button type="button" className="btn ghost" style={{padding:'5px 10px',minHeight:34}} onClick={()=>setLightbox(p)}>Zoom</button>}
+                <a className="btn ghost" style={{padding:'5px 10px',minHeight:34}} href={p.url} target="_blank" rel="noopener noreferrer">Open</a>
+              </div>
+            </div>
+          ))}
+        </div>}
+      </div>
+
+      {a.why&&<div className="dossier-q"><b>Why Security? ({countWords(a.why)} words)</b><div className="review-v">{a.why}</div></div>}
+      {a.role_understanding&&<div className="dossier-q"><b>Role of Security at MUN ({countWords(a.role_understanding)} words)</b><div className="review-v">{a.role_understanding}</div></div>}
+      {a.fight_precautions&&<div className="dossier-q"><b>Delegate Fight Precautions ({countWords(a.fight_precautions)} words)</b><div className="review-v">{a.fight_precautions}</div></div>}
+      {a.rules_enforcement&&<div className="dossier-q"><b>Ensuring Rules Enforcement ({countWords(a.rules_enforcement)} words)</b><div className="review-v">{a.rules_enforcement}</div></div>}
+      {a.issues_note&&<div className="dossier-q"><b>Issues Reported</b><div className="review-v">{a.issues_note}</div></div>}
+
+      {a.recommendation_note&&<p><i>Head's note: {a.recommendation_note}</i></p>}
+      {a.decision_note&&<p><i>Decision note: {a.decision_note}</i></p>}
+
+      <textarea placeholder="Reviewer note (optional)" value={note} onChange={e=>setNote(e.target.value)} aria-label="Note" style={{marginTop:10}}/>
       <div className="toolbar">
-        {a.status==='pending'&&<><button className="btn" onClick={()=>rpc('recommend_application',{app_id:a.id,rec:'accept',note})}>Recommend accept</button><button className="btn red" onClick={()=>rpc('recommend_application',{app_id:a.id,rec:'reject',note})}>Recommend reject</button></>}
-        {admin&&<><span style={{opacity:.6}}>Final decision:</span><button className="btn" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'accepted',note})}>Accept</button><button className="btn red" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'rejected',note})}>Reject</button>{a.status!=='pending'&&<button className="btn ghost" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'pending',note})}>Reopen</button>}</>}
-        <span className="msg">{msg}</span></div></div>}</div>;
+        {a.status==='pending'&&<>
+          <button className="btn" onClick={()=>rpc('recommend_application',{app_id:a.id,rec:'accept',note})}>Recommend accept</button>
+          <button className="btn red" onClick={()=>rpc('recommend_application',{app_id:a.id,rec:'reject',note})}>Recommend reject</button>
+        </>}
+        {admin&&<>
+          <span style={{opacity:.7}}>Final decision:</span>
+          <button className="btn" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'accepted',note})}>Accept</button>
+          <button className="btn red" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'rejected',note})}>Reject</button>
+          {a.status!=='pending'&&<button className="btn ghost" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'pending',note})}>Reopen</button>}
+        </>}
+        <span className="msg">{msg}</span>
+      </div>
+    </div>}
+
+    {lightbox&&<div className="lightbox" role="dialog" aria-modal="true" aria-label={lightbox.name} onClick={()=>setLightbox(null)}>
+      <img src={lightbox.url} alt={lightbox.name} onClick={e=>e.stopPropagation()}/>
+      <div className="lightbox-bar" onClick={e=>e.stopPropagation()}>
+        <span>{lightbox.name}</span>
+        <a className="btn ghost" style={{color:'#EDE6D6',borderColor:'#EDE6D6'}} href={lightbox.url} target="_blank" rel="noopener noreferrer">Open original</a>
+        <button type="button" className="btn" onClick={()=>setLightbox(null)}>Close</button>
+      </div>
+    </div>}
+  </div>;
 }
 
 function Applications({me}:any){
@@ -222,7 +848,7 @@ function Applications({me}:any){
     setRows(data||[]);
   },[]);
   useEffect(()=>{load()},[load]);
-  const shown=rows.filter(r=>(st==='all'||r.status===st)&&(tr==='all'||r.track===tr)&&(!q||JSON.stringify(r).toLowerCase().includes(q.toLowerCase())));
+  const shown=rows.filter(r=>(me.role!=='head'||r.track==='Security')&&(st==='all'||r.status===st)&&(tr==='all'||r.track===tr)&&(!q||JSON.stringify(r).toLowerCase().includes(q.toLowerCase())));
   const counts={
     total:rows.length,
     pending:rows.filter(r=>r.status==='pending').length,
