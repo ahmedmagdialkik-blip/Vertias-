@@ -33,6 +33,15 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      rollupOptions: {
+        // Two pages: the public site (index.html) and the team portal (/admin, /login, /account)
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          portal: path.resolve(__dirname, 'portal/index.html'),
+        },
+      },
+    },
     server: {
       host: '0.0.0.0',
       port: 3000,
