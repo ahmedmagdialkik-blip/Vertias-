@@ -40,7 +40,7 @@ export interface SecurityQuestionMeta {
 }
 
 export const MAX_PROOF_FILES = 10;
-export const MAX_PROOF_FILE_BYTES = 100 * 1024 * 1024; // 100 MB per file
+export const MAX_PROOF_FILE_BYTES = 10 * 1024 * 1024; // 10 MiB per file (matches private Supabase bucket)
 
 export const ALLOWED_PROOF_MIME_TYPES = new Set([
   'image/jpeg',
@@ -164,7 +164,7 @@ export function validateProofFiles(files: readonly FileLike[]): { valid: boolean
     if (file.size > MAX_PROOF_FILE_BYTES) {
       return {
         valid: false,
-        error: `"${file.name}" exceeds the 100 MB per-file limit.`
+        error: `"${file.name}" exceeds the 10 MB per-file limit.`
       };
     }
   }
