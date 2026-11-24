@@ -42,7 +42,7 @@ textarea{width:100%;min-height:90px}.btn{background:#1A1217;color:#EDE6D6;border
 .apply-shell{min-height:100vh;background:#1A1217;color:#EDE6D6;padding:26px 18px 64px}
 .apply-top{max-width:860px;margin:0 auto 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .apply-top a.brand-link{font-family:Cinzel,serif;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#EDE6D6;text-decoration:none;font-size:1rem}
-.apply-top a.back-link{color:#BAB1A0;text-decoration:none;border-bottom:1px solid #BAB1A055;padding:4px 0;font-size:1rem}
+.apply-top a.back-link,.apply-top button.back-link{color:#BAB1A0;text-decoration:none;border:0;border-bottom:1px solid #BAB1A055;padding:4px 0;background:transparent;font:inherit;font-size:1rem;cursor:pointer}
 .apply-top a.back-link:hover{color:#EDE6D6;border-color:#4F9A57}
 .apply-card{max-width:860px;margin:0 auto;background:#EDE6D6;color:#1A1217;border-top:4px solid #4F9A57;box-shadow:0 22px 54px rgba(0,0,0,0.45);padding:34px 36px}
 .apply-head{border-bottom:1px solid #1A121724;padding-bottom:18px;margin-bottom:24px}
@@ -671,16 +671,6 @@ function SecurityApply({onVolunteer}:any){
       </div>
     </form>
   </div>;
-}
-
-function Account({me}:any){
-  const [ann,setAnn]=useState<any[]>([]);
-  useEffect(()=>{sb.from('announcements').select('*').order('created_at',{ascending:false}).then(({data}:any)=>setAnn(data||[]))},[]);
-  return <div className="main" style={{maxWidth:760,margin:'0 auto'}}>
-    <h1>Welcome, {(me.full_name||'').split(' ')[0]}</h1>
-    <div className="card"><b style={{fontSize:'1.4rem',display:'block'}}>{me.full_name}</b>{me.position||'Member'}{me.department?' \u00b7 '+me.department:''}<br/>Access level: {me.role}</div>
-    <h2>Announcements</h2>{ann.length?ann.map(a=><div className="card" key={a.id} style={{marginBottom:12}}><h3 style={{margin:0}}>{a.title}</h3><p style={{whiteSpace:'pre-wrap'}}>{a.body}</p></div>):<p>No announcements yet.</p>}
-    <div className="toolbar">{(me.role==='admin'||me.role==='head')&&<a className="btn" href="/admin">{me.role==='admin'?'Admin panel':'Review applications'}</a>}<a className="btn ghost" href="/">Back to site</a><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div></div>;
 }
 
 function Account({me}:any){
