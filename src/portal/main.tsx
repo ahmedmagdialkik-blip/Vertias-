@@ -838,7 +838,8 @@ function Applications({me}:any){
     setRows(data||[]);
   },[]);
   useEffect(()=>{load()},[load]);
-  const shown=rows.filter(r=>(me.role!=='head'||r.track==='Security')&&(st==='all'||r.status===st)&&(tr==='all'||r.track===tr)&&(!q||JSON.stringify(r).toLowerCase().includes(q.toLowerCase())));
+  const headTrack=/security/i.test(String(me.department||''))?'Security':/volunteer/i.test(String(me.department||''))?'Volunteers':'';
+  const shown=rows.filter(r=>(me.role!=='head'||r.track===headTrack)&&(st==='all'||r.status===st)&&(tr==='all'||r.track===tr)&&(!q||JSON.stringify(r).toLowerCase().includes(q.toLowerCase())));
   const counts={
     total:rows.length,
     pending:rows.filter(r=>r.status==='pending').length,
