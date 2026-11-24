@@ -251,7 +251,6 @@ function Auth({recovery}:any){
   const [mode,setMode]=useState<string>(recovery?'reset':'in');
   const [email,setEmail]=useState('');const [pw,setPw]=useState('');const [pw2,setPw2]=useState('');const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);
   const go=async(e:any)=>{e.preventDefault();setMsg('');const em=email.trim().toLowerCase();
-    if((mode==='up'||mode==='reset')&&pw.length<10){setMsg('Your password must be at least 10 characters.');return}
     if((mode==='up'||mode==='reset')&&pw!==pw2){setMsg('The passwords do not match.');return}
     setBusy(true);
     if(mode==='in'){const {error}=await sb.auth.signInWithPassword({email:em,password:pw});if(error)setMsg(/confirm/i.test(error.message)?'Please confirm your email first. Check your inbox for the confirmation message.':'Wrong email or password. If you forgot it, use Forgot password.')}
@@ -265,7 +264,7 @@ function Auth({recovery}:any){
   return <form className="box" onSubmit={go}><h2 style={{margin:0}}>Veritas MUN</h2><h3>{t[mode]}</h3>
     {mode==='up'&&<p>Use the email you gave on the team form. Choose a password and we'll set up your role automatically.</p>}
     {mode!=='reset'&&<input type="email" required placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} aria-label="Email" autoComplete="email"/>}
-    {mode!=='forgot'&&<input type="password" required placeholder={mode==='in'?'Password':'New password (10+ characters)'} value={pw} onChange={e=>setPw(e.target.value)} aria-label="Password" autoComplete={mode==='in'?'current-password':'new-password'}/>}
+    {mode!=='forgot'&&<input type="password" required placeholder={mode==='in'?'Password':'New password'} value={pw} onChange={e=>setPw(e.target.value)} aria-label="Password" autoComplete={mode==='in'?'current-password':'new-password'}/>}
     {(mode==='up'||mode==='reset')&&<input type="password" required placeholder="Repeat password" value={pw2} onChange={e=>setPw2(e.target.value)} aria-label="Repeat password" autoComplete="new-password"/>}
     <button className="btn" disabled={busy}>{busy?'Please wait...':t[mode]}</button><div className="msg" role="status">{msg}</div>
     {mode!=='reset'&&<div className="toolbar">{mode!=='in'&&<a href="#" onClick={e=>{e.preventDefault();setMode('in');setMsg('')}}>Sign in</a>}{mode!=='up'&&<a href="#" onClick={e=>{e.preventDefault();setMode('up');setMsg('')}}>Create account</a>}{mode==='in'&&<a href="#" onClick={e=>{e.preventDefault();setMode('forgot');setMsg('')}}>Forgot password?</a>}</div>}</form>;
