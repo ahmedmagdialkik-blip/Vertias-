@@ -410,6 +410,7 @@ function SecurityApply({onVolunteer}:any){
 
       const normalizedEmail=draft.email.trim().toLowerCase();
       const {error:insErr}=await sb.from('applications').insert({
+        id:submissionId,
         track:'Security',
         full_name:draft.full_name.trim(),
         email:normalizedEmail,
