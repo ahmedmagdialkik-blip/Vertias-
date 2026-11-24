@@ -241,6 +241,82 @@ fieldset.choice-group{border:0;padding:0;margin:0 0 16px}
 }
 @media(max-width:480px){.admin-stat-grid{grid-template-columns:1fr 1fr;gap:8px}.admin-stat-card{padding:12px}.admin-stat-value{font-size:24px}.admin-top-link{padding:7px 9px}}
 
+
+/* Final Veritas brand palette: ink, cream and taupe; laurel green is an accent only. */
+.admin-layout{background:#EDE6D6;color:#1A1217}
+.admin-sidebar{background:#1A1217;border-right:1px solid #51464a;color:#EDE6D6}
+.admin-brand{border-bottom:1px solid #51464a}
+.admin-wordmark{color:#EDE6D6}
+.admin-wordmark span{color:#BAB1A0}
+.admin-brand-sub{color:#BAB1A0}
+.admin-nav-group-title{color:#BAB1A0}
+.admin-nav-item{color:#D7CCBD}
+.admin-nav-item svg{color:#BAB1A0}
+.admin-nav-item:hover{background:#30262b;color:#EDE6D6}
+.admin-nav-item.active{background:#30262b;color:#EDE6D6}
+.admin-nav-item.active:before{background:#2F6B34}
+.admin-nav-item.active svg{color:#D9CFC0}
+.admin-sidebar-footer{border-top:1px solid #51464a}
+.admin-profile{background:#30262b;border-color:#65585d}
+.admin-avatar{background:#4a4143;color:#EDE6D6;border-color:#8d817c}
+.admin-profile-copy strong{color:#EDE6D6}
+.admin-profile-copy span{color:#BAB1A0}
+.admin-site-link{color:#D1C6B8}
+.admin-site-link:hover{color:#EDE6D6}
+.admin-main-column{background:#EDE6D6}
+.admin-topbar{background:rgba(237,230,214,.96);border-bottom:1px solid #BAB1A0}
+.admin-breadcrumb{color:#80766f}
+.admin-breadcrumb svg{color:#9b9086}
+.admin-breadcrumb strong{color:#1A1217}
+.admin-role-pill{background:#1A1217;border:1px solid #51464a;color:#EDE6D6}
+.admin-role-dot{background:#2F6B34;box-shadow:0 0 0 3px #2F6B3420}
+.admin-top-link{border-color:#BAB1A0;color:#51464a}
+.admin-top-link:hover{background:#e2d9c8;color:#1A1217}
+.admin-content{background:#EDE6D6}
+.admin-layout h1,.admin-layout h2,.admin-layout h3,.admin-layout h4{color:#1A1217}
+.admin-layout p{color:#61575a}
+.admin-kicker{color:#6f665f!important}
+.admin-stat-card{background:#F7F2E6;border:1px solid #BAB1A0;box-shadow:0 5px 18px rgba(26,18,23,.045)}
+.admin-stat-label{color:#756b64}
+.admin-stat-value{color:#1A1217}
+.admin-filter-panel,.admin-panel{background:#F7F2E6;border:1px solid #BAB1A0}
+.admin-filter-count{color:#756b64}
+.admin-layout input:not([type=checkbox]):not([type=radio]),.admin-layout select,.admin-layout textarea{background:#FBF8F1;color:#1A1217;border:1px solid #BAB1A0}
+.admin-layout input::placeholder,.admin-layout textarea::placeholder{color:#8d8379}
+.admin-layout input:focus,.admin-layout select:focus,.admin-layout textarea:focus{border-color:#2F6B34;box-shadow:0 0 0 3px #2F6B3416}
+.admin-layout .btn{background:#1A1217;color:#EDE6D6;border:1px solid #1A1217}
+.admin-layout .btn:hover{background:#30262b}
+.admin-layout .btn.ghost{background:transparent;color:#1A1217;border:1px solid #8e837d}
+.admin-layout .btn.ghost:hover{background:#e5ddcf;color:#1A1217;border-color:#51464a}
+.admin-layout .btn.red{background:#6b3438;border-color:#6b3438;color:#fff0ed}
+.admin-layout .btn.red:hover{background:#54282c}
+.admin-layout .card{background:#FBF8F1;color:#1A1217;border:1px solid #BAB1A0;box-shadow:none}
+.admin-layout .card p,.admin-layout .card span{color:inherit}
+.admin-layout .card b.stat{color:#1A1217}
+.admin-layout .tag{background:#e5ddcf;color:#51464a;border:1px solid #BAB1A0}
+.admin-layout .tag.g{background:#e6ede2;color:#2F6B34;border-color:#9caf91}
+.admin-layout .tag.r{background:#f0dfda;color:#71393b;border-color:#c5a19a}
+.admin-layout .msg{color:#2F6B34}
+.admin-layout .err{background:#f1dfdc;border-left-color:#8a2b2b;color:#6b1f1f}
+.admin-layout .tw{border:1px solid #BAB1A0;background:#FBF8F1}
+.admin-layout table{color:#1A1217}
+.admin-layout td,.admin-layout th{border-bottom:1px solid #d2c9bb}
+.admin-layout th{color:#51464a;background:#e5ddcf}
+.admin-layout tbody tr:hover{background:#F1EBDD}
+.admin-layout .tabs button{color:#51464a;border-color:#BAB1A0}
+.admin-layout .tabs button.on{background:#1A1217;color:#EDE6D6}
+.application-card .dossier-grid{background:#F1EBDD;border:1px solid #BAB1A0}
+.application-card .dossier-q{border-top-color:#d2c9bb}
+.application-card .dossier-q b{color:#2F6B34}
+.application-card .review-k{color:#6f665f}
+.admin-empty-state{background:#F7F2E6;border:1px solid #BAB1A0}
+.admin-empty-state svg{color:#2F6B34}
+.admin-empty-state strong{color:#1A1217}
+.admin-empty-state p{color:#756b64}
+.admin-activity-row{border-bottom:1px solid #d2c9bb;color:#1A1217}
+.admin-activity-row time{color:#756b64}
+.admin-layout .box{background:#F7F2E6;color:#1A1217;border:1px solid #BAB1A0;box-shadow:none}
+
 `;
 
 function parseCSV(t:string){const rows:string[][]=[];let r:string[]=[],c='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'&&t[i+1]==='"'){c+='"';i++}else if(ch==='"')q=false;else c+=ch}else if(ch==='"')q=true;else if(ch===','){r.push(c);c=''}else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';if(r.some(x=>x.trim()))rows.push(r);r=[]}else c+=ch}r.push(c);if(r.some(x=>x.trim()))rows.push(r);return rows}
