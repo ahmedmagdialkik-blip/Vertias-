@@ -8,6 +8,14 @@
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<script>
+(function(){
+  var p = window.location.pathname || '/';
+  if (p === '/login' || p === '/signup' || p === '/account' || p === '/admin') {
+    document.documentElement.classList.add('is-portal-route');
+  }
+})();
+</script>
 <style>
 /* ===== VERITAS MUN: INTRO + BACKGROUND ===== */
 :root{
@@ -26,7 +34,8 @@
   --marquee-stroke:rgba(237,230,214,0.68);
   --rule:rgba(237,230,214,0.16);
 }
-*{box-sizing:border-box;margin:0}
+*{box-sizing:border-box}
+html:not(.is-portal-route) *{margin:0}
 html,body{height:100%;background:var(--ink);color:var(--fg);font-family:'Cormorant Garamond',Georgia,serif;overflow-x:hidden}
 body.locked{overflow:hidden}
 #pageBg{position:fixed;inset:0;z-index:0;background:#1A1217;pointer-events:none;will-change:background-color}
@@ -414,6 +423,7 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
   display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:24px;
 }
 .footer-brand h2{font-family:'Cinzel',serif;font-size:1.15rem;font-weight:600;letter-spacing:.08em;color:var(--fg);transition:color .28s ease}
+.footer-actions{display:flex;flex-wrap:wrap;align-items:center;gap:24px}
 .replay-link{
   position:relative;font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:1.08rem;
   color:var(--fg);background:none;border:0;padding:8px 0;min-height:44px;
@@ -436,6 +446,33 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
   width:100%;font-size:11.8vw;line-height:.7;letter-spacing:.015em;
   color:var(--fg);transform:translateY(26%);user-select:none;transition:color .28s ease;
 }
+
+/* Dynamic published lists for Committees, Schedule, FAQ, Register */
+.dynamic-list{max-width:48ch;display:flex;flex-direction:column;gap:22px;margin-top:8px}
+.dynamic-entry{border-bottom:1px solid var(--rule);padding-bottom:18px}
+.dynamic-entry-title{font-family:'Cinzel',serif;font-weight:600;font-size:clamp(1.18rem,2vw,1.45rem);line-height:1.25;color:var(--fg);letter-spacing:.02em}
+.dynamic-entry-meta{font-family:'Cinzel',serif;font-size:.82rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-num);margin-bottom:4px}
+.dynamic-entry-body{margin-top:6px;font-size:1.2rem;line-height:1.68;color:var(--fg-muted)}
+.dynamic-link{display:inline-flex;align-items:center;margin-top:10px;padding:10px 22px;background:var(--green);color:#EDE6D6;font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;transition:background-color .18s ease}
+.dynamic-link:hover{background:var(--green-d)}
+.register-status{margin-bottom:16px;font-style:italic;font-size:1.18rem;color:var(--accent-num)}
+
+/* Portal routes (/login, /signup, /account, /admin) hide public intro/globe/statue cleanly */
+html.is-portal-route,
+html.is-portal-route body{overflow:auto !important;height:auto !important;background:#1A1217}
+html.is-portal-route #scrollProgress,
+html.is-portal-route #inkCursor,
+html.is-portal-route #pageBg,
+html.is-portal-route #introBackdrop,
+html.is-portal-route #globe,
+html.is-portal-route #introHud,
+html.is-portal-route #navLogo,
+html.is-portal-route #nav,
+html.is-portal-route #introControls,
+html.is-portal-route #stage,
+html.is-portal-route #site,
+html.is-portal-route #torchFx,
+html.is-portal-route #statueDock{display:none !important}
 
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -653,7 +690,7 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
           </figure>
           <div class="secretariat-meta">
             <h3 class="secretariat-name">Laya Shahwan</h3>
-            <p class="secretariat-role">Under-Secretary-General</p>
+            <p class="secretariat-role">Deputy Secretary-General</p>
           </div>
         </article>
       </div>
@@ -734,7 +771,10 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
       <div class="footer-brand">
         <h2>Veritas MUN</h2>
       </div>
-      <button type="button" id="replayIntroBtn" class="replay-link"><span aria-hidden="true">&#8634;</span> Replay intro</button>
+      <div class="footer-actions">
+        <a href="/login" id="teamLoginLink" class="replay-link">Team login</a>
+        <button type="button" id="replayIntroBtn" class="replay-link"><span aria-hidden="true">&#8634;</span> Replay intro</button>
+      </div>
     </div>
     <div class="footer-monument">
       <div class="footer-wordmark" aria-hidden="true">VERITAS MUN</div>
@@ -2182,17 +2222,50 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
   });
   addEventListener('intro:replay', replayIntro);
 
-  if (reduceMQ.matches || autostart) {
+  let introLoopActive = false;
+  function startGlobeLoop() {
+    if (introLoopActive || document.documentElement.classList.contains('is-portal-route')) return;
+    introLoopActive = true;
+    lastTick = performance.now();
+    if (isSoftwareGl) tick();
+    else frameId = requestAnimationFrame(tick);
+  }
+
+  const origTick = tick;
+  window.__veritasSetPortalMode = function(isPortal, opts) {
+    if (isPortal) {
+      document.documentElement.classList.add('is-portal-route');
+      document.body.classList.remove('locked');
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+      }
+      introLoopActive = false;
+    } else {
+      document.documentElement.classList.remove('is-portal-route');
+      if (opts && opts.skipIntro) {
+        finishToReadyImmediately();
+      }
+      if (!introLoopActive) {
+        introLoopActive = true;
+        lastTick = performance.now();
+        if (isSoftwareGl) origTick();
+        else frameId = requestAnimationFrame(origTick);
+      }
+    }
+  };
+
+  if (document.documentElement.classList.contains('is-portal-route')) {
+    document.body.classList.remove('locked');
+  } else if (reduceMQ.matches || autostart) {
     finishToReadyImmediately();
+    startGlobeLoop();
   } else {
     document.fonts.ready.then(() => {
       introStartTime = performance.now();
     });
+    startGlobeLoop();
   }
-
-  lastTick = performance.now();
-  if (isSoftwareGl) tick();
-  else frameId = requestAnimationFrame(tick);
 })();
 </script>
 <script id="veritas-site-script">
@@ -2429,10 +2502,9 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
 
   // Hero per-letter pointer lift ("each letter lifts slightly as the mouse passes over it")
   const heroTitle = $('.hero-title');
-  const heroChars = $$('.hero-char');
-  if (heroTitle && heroChars.length > 0 && finePointerQuery.matches && !reduceMotionQuery.matches) {
+  if (heroTitle && finePointerQuery.matches && !reduceMotionQuery.matches) {
     function clearHeroLift() {
-      heroChars.forEach(ch => {
+      $$('.hero-char').forEach(ch => {
         ch.style.setProperty('--liftY', '0px');
         ch.style.setProperty('--liftGlow', '0');
         ch.classList.remove('is-lifted');
@@ -2442,7 +2514,7 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       if (e.pointerType === 'touch' || reduceMotionQuery.matches || !document.body.classList.contains('hero-interactive')) return;
       const radius = 120;
       const maxLiftPx = 14;
-      heroChars.forEach(ch => {
+      $$('.hero-char').forEach(ch => {
         const r = ch.getBoundingClientRect();
         const cx = r.left + r.width / 2;
         const cy = r.top + r.height / 2;
@@ -2574,25 +2646,49 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     }, { passive: true });
   }
 
-  // Secretariat draggable printed photos with spring physics
+  // Secretariat draggable printed photos with spring physics (supports dynamic Supabase cards)
   const dragHint = $('#dragHint');
   let dragHintDismissed = false;
   let topPhotoZ = 10;
-  const photoFrames = [
-    { entry: $('.secretariat-entry--laila'), el: $('.secretariat-entry--laila .printed-photo'), baseZ: -0.9, baseOrderZ: 3 },
-    { entry: $('.secretariat-entry--zain'), el: $('.secretariat-entry--zain .printed-photo'), baseZ: -2.8, baseOrderZ: 1 },
-    { entry: $('.secretariat-entry--laya'), el: $('.secretariat-entry--laya .printed-photo'), baseZ: 2.2, baseOrderZ: 2 }
-  ].filter(item => item.el).map(item => ({
-    ...item,
-    dx: 0, dy: 0, vx: 0, vy: 0,
-    rx: 0, ry: 0, rz: item.baseZ,
-    trx: 0, try: 0, trz: item.baseZ,
-    ps: 1, tps: 1,
-    dragging: false, pointerId: null,
-    startX: 0, startY: 0, startDx: 0, startDy: 0,
-    lastClientX: 0, lastClientY: 0, lastMoveTime: 0,
-    raf: 0, lastFrame: 0
-  }));
+  let photoFrames = [];
+
+  function buildPhotoFrames() {
+    photoFrames.forEach(item => {
+      if (item.raf) cancelAnimationFrame(item.raf);
+    });
+    const slots = [
+      { cls: -0.9, orderZ: 3 },
+      { cls: -2.8, orderZ: 1 },
+      { cls: 2.2, orderZ: 2 }
+    ];
+    photoFrames = $$('.secretariat-entry').map((entry, idx) => {
+      const el = entry.querySelector('.printed-photo');
+      if (!el) return null;
+      const fallback = slots[idx % slots.length];
+      const baseZ = entry.classList.contains('secretariat-entry--laila')
+        ? -0.9
+        : entry.classList.contains('secretariat-entry--zain')
+          ? -2.8
+          : entry.classList.contains('secretariat-entry--laya')
+            ? 2.2
+            : fallback.cls;
+      return {
+        entry,
+        el,
+        baseZ,
+        baseOrderZ: fallback.orderZ,
+        dx: 0, dy: 0, vx: 0, vy: 0,
+        rx: 0, ry: 0, rz: baseZ,
+        trx: 0, try: 0, trz: baseZ,
+        ps: 1, tps: 1,
+        dragging: false, pointerId: null,
+        startX: 0, startY: 0, startDx: 0, startDy: 0,
+        lastClientX: 0, lastClientY: 0, lastMoveTime: 0,
+        raf: 0, lastFrame: 0
+      };
+    }).filter(Boolean);
+    bindAllPhotoFrameListeners();
+  }
 
   function renderPhotoFrame(item, now) {
     item.raf = 0;
@@ -2658,88 +2754,93 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     }
   }
 
-  photoFrames.forEach(item => {
-    item.el.addEventListener('pointerdown', e => {
-      if (reduceMotionQuery.matches) return;
-      if (e.button && e.button !== 0) return;
-      item.dragging = true;
-      item.pointerId = e.pointerId;
-      item.startX = e.clientX;
-      item.startY = e.clientY;
-      item.startDx = item.dx;
-      item.startDy = item.dy;
-      item.lastClientX = e.clientX;
-      item.lastClientY = e.clientY;
-      item.lastMoveTime = performance.now();
-      item.vx = 0;
-      item.vy = 0;
-      item.tps = 1.04;
-      item.el.classList.add('is-dragging');
-      if (item.entry) item.entry.style.zIndex = String(++topPhotoZ);
-      try { item.el.setPointerCapture(e.pointerId); } catch (_) {}
-      if (!dragHintDismissed) {
-        dragHintDismissed = true;
-        dragHint?.classList.add('is-dismissed');
-      }
-      kickPhotoFrame(item);
-    });
-
-    item.el.addEventListener('pointermove', e => {
-      if (reduceMotionQuery.matches) return;
-      if (item.dragging && e.pointerId === item.pointerId) {
-        const now = performance.now();
-        const dtMs = Math.max(8, now - item.lastMoveTime);
-        const stepX = e.clientX - item.lastClientX;
-        const stepY = e.clientY - item.lastClientY;
-        item.vx = (stepX / dtMs) * 1000;
-        item.vy = (stepY / dtMs) * 1000;
+  function bindAllPhotoFrameListeners() {
+    photoFrames.forEach(item => {
+      if (item.el.dataset.dragBound === '1') return;
+      item.el.dataset.dragBound = '1';
+      item.el.addEventListener('pointerdown', e => {
+        if (reduceMotionQuery.matches) return;
+        if (e.button && e.button !== 0) return;
+        item.dragging = true;
+        item.pointerId = e.pointerId;
+        item.startX = e.clientX;
+        item.startY = e.clientY;
+        item.startDx = item.dx;
+        item.startDy = item.dy;
         item.lastClientX = e.clientX;
         item.lastClientY = e.clientY;
-        item.lastMoveTime = now;
-
-        item.dx = item.startDx + (e.clientX - item.startX);
-        item.dy = item.startDy + (e.clientY - item.startY);
-        const clampedVx = Math.max(-16, Math.min(16, stepX * 0.72));
-        const clampedVy = Math.max(-10, Math.min(10, stepY * 0.45));
-        item.trz = item.baseZ + clampedVx;
-        item.trx = -clampedVy;
-        item.try = clampedVx * 0.6;
+        item.lastMoveTime = performance.now();
+        item.vx = 0;
+        item.vy = 0;
+        item.tps = 1.04;
+        item.el.classList.add('is-dragging');
+        if (item.entry) item.entry.style.zIndex = String(++topPhotoZ);
+        try { item.el.setPointerCapture(e.pointerId); } catch (_) {}
+        if (!dragHintDismissed) {
+          dragHintDismissed = true;
+          dragHint?.classList.add('is-dismissed');
+        }
         kickPhotoFrame(item);
-        return;
-      }
-      if (e.pointerType === 'touch') return;
-      const rect = item.el.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-      const nx = Math.min(1, Math.max(-1, ((e.clientX - rect.left) / rect.width) * 2 - 1));
-      const ny = Math.min(1, Math.max(-1, ((e.clientY - rect.top) / rect.height) * 2 - 1));
-      item.trx = -ny * 5.5;
-      item.try = nx * 5.5;
-      item.trz = item.baseZ * 0.45;
-      kickPhotoFrame(item);
-    }, { passive: true });
+      });
 
-    const endDrag = e => {
-      if (!item.dragging) return;
-      if (e && e.pointerId !== undefined && item.pointerId !== null && e.pointerId !== item.pointerId) return;
-      item.dragging = false;
-      item.pointerId = null;
-      item.el.classList.remove('is-dragging');
-      item.tps = 1;
-      item.trx = 0;
-      item.try = 0;
-      item.trz = item.baseZ;
-      kickPhotoFrame(item);
-    };
-    item.el.addEventListener('pointerup', endDrag);
-    item.el.addEventListener('pointercancel', endDrag);
-    item.el.addEventListener('pointerleave', () => {
-      if (item.dragging) return;
-      item.trx = 0;
-      item.try = 0;
-      item.trz = item.baseZ;
-      kickPhotoFrame(item);
+      item.el.addEventListener('pointermove', e => {
+        if (reduceMotionQuery.matches) return;
+        if (item.dragging && e.pointerId === item.pointerId) {
+          const now = performance.now();
+          const dtMs = Math.max(8, now - item.lastMoveTime);
+          const stepX = e.clientX - item.lastClientX;
+          const stepY = e.clientY - item.lastClientY;
+          item.vx = (stepX / dtMs) * 1000;
+          item.vy = (stepY / dtMs) * 1000;
+          item.lastClientX = e.clientX;
+          item.lastClientY = e.clientY;
+          item.lastMoveTime = now;
+
+          item.dx = item.startDx + (e.clientX - item.startX);
+          item.dy = item.startDy + (e.clientY - item.startY);
+          const clampedVx = Math.max(-16, Math.min(16, stepX * 0.72));
+          const clampedVy = Math.max(-10, Math.min(10, stepY * 0.45));
+          item.trz = item.baseZ + clampedVx;
+          item.trx = -clampedVy;
+          item.try = clampedVx * 0.6;
+          kickPhotoFrame(item);
+          return;
+        }
+        if (e.pointerType === 'touch') return;
+        const rect = item.el.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const nx = Math.min(1, Math.max(-1, ((e.clientX - rect.left) / rect.width) * 2 - 1));
+        const ny = Math.min(1, Math.max(-1, ((e.clientY - rect.top) / rect.height) * 2 - 1));
+        item.trx = -ny * 5.5;
+        item.try = nx * 5.5;
+        item.trz = item.baseZ * 0.45;
+        kickPhotoFrame(item);
+      }, { passive: true });
+
+      const endDrag = e => {
+        if (!item.dragging) return;
+        if (e && e.pointerId !== undefined && item.pointerId !== null && e.pointerId !== item.pointerId) return;
+        item.dragging = false;
+        item.pointerId = null;
+        item.el.classList.remove('is-dragging');
+        item.tps = 1;
+        item.trx = 0;
+        item.try = 0;
+        item.trz = item.baseZ;
+        kickPhotoFrame(item);
+      };
+      item.el.addEventListener('pointerup', endDrag);
+      item.el.addEventListener('pointercancel', endDrag);
+      item.el.addEventListener('pointerleave', () => {
+        if (item.dragging) return;
+        item.trx = 0;
+        item.try = 0;
+        item.trz = item.baseZ;
+        kickPhotoFrame(item);
+      });
     });
-  });
+  }
+  buildPhotoFrames();
 
   function updateMobilePhotoScrollTilt() {
     if (reduceMotionQuery.matches || (finePointerQuery.matches && window.innerWidth > 720)) return;
@@ -2817,6 +2918,236 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
   $('#replayIntroBtn')?.addEventListener('click', () => {
     window.dispatchEvent(new Event('intro:replay'));
   });
+
+  // Safe DOM updater called by React when Supabase site_content / team_cards load
+  function safeHref(url) {
+    if (!url || typeof url !== 'string') return '';
+    var t = url.trim();
+    if (t.startsWith('/') || t.startsWith('https://') || t.startsWith('http://')) return t;
+    return '';
+  }
+
+  function renderHeroText(hero) {
+    if (!hero) return;
+    var h1 = $('.hero-title');
+    if (h1 && hero.title) {
+      h1.setAttribute('aria-label', hero.title);
+      h1.textContent = '';
+      var words = String(hero.title).trim().split(/\s+/);
+      var ci = 0;
+      words.forEach(function(word, wi) {
+        var wordSpan = document.createElement('span');
+        wordSpan.className = 'hero-word';
+        wordSpan.setAttribute('aria-hidden', 'true');
+        for (var i = 0; i < word.length; i++) {
+          var chSpan = document.createElement('span');
+          chSpan.className = 'hero-char';
+          chSpan.style.setProperty('--ci', String(ci++));
+          chSpan.textContent = word[i];
+          wordSpan.appendChild(chSpan);
+        }
+        h1.appendChild(wordSpan);
+        if (wi < words.length - 1) h1.appendChild(document.createTextNode(' '));
+      });
+    }
+    var tag = $('.hero-tag');
+    if (tag && hero.tagline) tag.textContent = hero.tagline;
+    var cta = $('.hero-actions .btn-solid');
+    if (cta && hero.ctaLabel) cta.textContent = hero.ctaLabel;
+  }
+
+  function renderAboutSection(about) {
+    var host = $('#about .about-prose');
+    if (!host || !about || !Array.isArray(about.paragraphs) || about.paragraphs.length === 0) return;
+    host.textContent = '';
+    about.paragraphs.forEach(function(text, idx) {
+      var p = document.createElement('p');
+      if (idx === 0) p.className = 'dropcap';
+      p.textContent = text;
+      host.appendChild(p);
+    });
+  }
+
+  function renderDynamicTbaSection(sectionId, secData, settings) {
+    var inner = document.querySelector('#' + sectionId + ' .band-inner');
+    if (!inner || !secData) return;
+    var head = inner.querySelector('.section-head');
+    inner.textContent = '';
+    if (head) inner.appendChild(head);
+
+    var showTba = secData.showTba !== false || !Array.isArray(secData.items) || secData.items.length === 0;
+    if (showTba) {
+      var stage = document.createElement('div');
+      stage.className = 'tba-stage is-drawn';
+      var word = document.createElement('p');
+      word.className = 'tba-word';
+      word.textContent = 'TBA';
+      var rule = document.createElement('div');
+      rule.className = 'tba-rule';
+      rule.setAttribute('aria-hidden', 'true');
+      var sub = document.createElement('p');
+      sub.className = 'tba-sub';
+      sub.textContent = secData.tbaSubtitle || 'To be announced.';
+      stage.appendChild(word);
+      stage.appendChild(rule);
+      stage.appendChild(sub);
+      inner.appendChild(stage);
+      return;
+    }
+
+    if (sectionId === 'register' && settings) {
+      var statusP = document.createElement('p');
+      statusP.className = 'register-status';
+      statusP.textContent = settings.registration_open
+        ? 'Delegate registration is open.'
+        : 'Delegate registration is currently closed.';
+      inner.appendChild(statusP);
+    }
+
+    var list = document.createElement('div');
+    list.className = 'dynamic-list';
+
+    secData.items.forEach(function(item) {
+      var entry = document.createElement('article');
+      entry.className = 'dynamic-entry';
+      if (sectionId === 'committees') {
+        var h3 = document.createElement('h3');
+        h3.className = 'dynamic-entry-title';
+        h3.textContent = item.name || '';
+        var p = document.createElement('p');
+        p.className = 'dynamic-entry-body';
+        p.textContent = item.details || '';
+        entry.appendChild(h3);
+        if (item.details) entry.appendChild(p);
+      } else if (sectionId === 'schedule') {
+        if (item.dateTime) {
+          var meta = document.createElement('p');
+          meta.className = 'dynamic-entry-meta';
+          meta.textContent = item.dateTime;
+          entry.appendChild(meta);
+        }
+        var sh3 = document.createElement('h3');
+        sh3.className = 'dynamic-entry-title';
+        sh3.textContent = item.title || '';
+        entry.appendChild(sh3);
+        if (item.details) {
+          var sp = document.createElement('p');
+          sp.className = 'dynamic-entry-body';
+          sp.textContent = item.details;
+          entry.appendChild(sp);
+        }
+      } else if (sectionId === 'faq') {
+        var q = document.createElement('h3');
+        q.className = 'dynamic-entry-title';
+        q.textContent = item.question || '';
+        var a = document.createElement('p');
+        a.className = 'dynamic-entry-body';
+        a.textContent = item.answer || '';
+        entry.appendChild(q);
+        if (item.answer) entry.appendChild(a);
+      } else if (sectionId === 'register') {
+        var rt = document.createElement('h3');
+        rt.className = 'dynamic-entry-title';
+        rt.textContent = item.title || '';
+        entry.appendChild(rt);
+        if (item.details) {
+          var rd = document.createElement('p');
+          rd.className = 'dynamic-entry-body';
+          rd.textContent = item.details;
+          entry.appendChild(rd);
+        }
+        var href = safeHref(item.linkUrl);
+        if (href && (!settings || settings.registration_open !== false)) {
+          var link = document.createElement('a');
+          link.className = 'dynamic-link';
+          link.href = href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = item.linkLabel || 'Open Registration';
+          entry.appendChild(link);
+        }
+      }
+      list.appendChild(entry);
+    });
+    inner.appendChild(list);
+
+    if (sectionId === 'register' && settings && settings.contact_email) {
+      var contactP = document.createElement('p');
+      contactP.className = 'dynamic-entry-body';
+      contactP.style.marginTop = '18px';
+      contactP.textContent = 'Questions: ' + settings.contact_email;
+      inner.appendChild(contactP);
+    }
+  }
+
+  function renderTeamCards(cards) {
+    var cluster = $('.secretariat-cluster');
+    if (!cluster || !Array.isArray(cards) || cards.length === 0) return;
+    cluster.textContent = '';
+    var slotClasses = ['secretariat-entry--laila', 'secretariat-entry--zain', 'secretariat-entry--laya'];
+    cards.forEach(function(card, idx) {
+      var article = document.createElement('article');
+      var slotCls = idx < 3 ? slotClasses[idx] : '';
+      article.className = 'secretariat-entry' + (slotCls ? ' ' + slotCls : '');
+      var fig = document.createElement('figure');
+      fig.className = 'printed-photo';
+      var img = document.createElement('img');
+      var cleanUrl = safeHref(card.photo_url);
+      if (cleanUrl) {
+        img.src = cleanUrl;
+      } else {
+        fig.classList.add('is-missing');
+      }
+      img.alt = card.full_name || 'Secretariat member';
+      img.addEventListener('error', function() { fig.classList.add('is-missing'); });
+      var ph = document.createElement('span');
+      ph.className = 'photo-placeholder';
+      ph.setAttribute('aria-hidden', 'true');
+      ph.textContent = 'photo coming';
+      fig.appendChild(img);
+      fig.appendChild(ph);
+
+      var meta = document.createElement('div');
+      meta.className = 'secretariat-meta';
+      var h3 = document.createElement('h3');
+      h3.className = 'secretariat-name';
+      h3.textContent = card.full_name || '';
+      var role = document.createElement('p');
+      role.className = 'secretariat-role';
+      role.textContent = card.title || '';
+      meta.appendChild(h3);
+      meta.appendChild(role);
+
+      article.appendChild(fig);
+      article.appendChild(meta);
+      cluster.appendChild(article);
+    });
+    buildPhotoFrames();
+  }
+
+  window.__veritasApplyPublicData = function(payload) {
+    if (!payload) return;
+    var content = payload.content;
+    if (content) {
+      renderHeroText(content.hero);
+      renderAboutSection(content.about);
+      renderDynamicTbaSection('committees', content.committees, content.settings);
+      renderDynamicTbaSection('schedule', content.schedule, content.settings);
+      renderDynamicTbaSection('faq', content.faq, content.settings);
+      renderDynamicTbaSection('register', content.register, content.settings);
+      if (content.settings && content.settings.site_name) {
+        document.title = content.settings.site_name;
+        var navBrand = $('.nav-brand .brand');
+        if (navBrand) navBrand.textContent = content.settings.site_name;
+        var footerBrand = $('.footer-brand h2');
+        if (footerBrand) footerBrand.textContent = content.settings.site_name;
+      }
+    }
+    if (payload.teamCards) {
+      renderTeamCards(payload.teamCards);
+    }
+    revealVisibleElements();
+  };
 
   // Interactive Statue of Liberty: hero -> pinned corner, crossfade, 3D cursor/touch tilt, torch flicker/embers/flare, Web Audio spark
   const statueDock = $('#statueDock');
@@ -3183,4 +3514,6 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
   }
 })();
 </script>
+<div id="root"></div>
+<script type="module" src="/src/main.tsx"></script>
 </body></html>

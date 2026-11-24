@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@layer base {
+  html.is-portal-route,
+  html.is-portal-route body {
+    height: auto;
+    min-height: 100%;
+    background: #1A1217;
+    overflow: auto !important;
+  }
+
+  #root {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+}
