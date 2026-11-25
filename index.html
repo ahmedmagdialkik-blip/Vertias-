@@ -270,7 +270,7 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
   font-style:italic;font-size:clamp(1.38rem,2.5vw,2.05rem);
   margin:30px 0 42px;color:var(--cream-muted);max-width:34ch;
 }
-.hero-actions{display:flex;align-items:center}
+.hero-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 
 /* Bright green magnetic button with glow & WCAG AA contrast (#1A1217 on #4F9A57) */
 .btn-solid{
@@ -294,6 +294,22 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
   box-shadow:0 0 20px rgba(79,154,87,0.5),0 2px 6px rgba(0,0,0,0.35);
 }
 .btn-solid:focus-visible{outline:2px solid var(--cream);outline-offset:4px}
+.btn-outline{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:52px;padding:14px 28px;background:rgba(26,18,23,0.45);color:var(--cream);
+  border:1px solid rgba(237,230,214,0.42);font-family:'Cinzel',serif;font-weight:600;
+  font-size:.86rem;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;
+  white-space:nowrap;cursor:pointer;
+  transition:background-color .18s ease,border-color .18s ease,color .18s ease;
+}
+.btn-outline:hover{background:rgba(237,230,214,0.1);border-color:var(--green-bright);color:var(--cream)}
+.btn-outline:focus-visible{outline:2px solid var(--green-bright);outline-offset:4px}
+.apply-open-banner{
+  display:inline-flex;align-items:center;gap:10px;margin:0 0 22px;padding:7px 14px;
+  border:1px solid rgba(79,154,87,0.55);background:rgba(47,107,52,0.2);color:var(--cream);
+  font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+}
+.apply-open-dot{width:8px;height:8px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 10px var(--green-bright);flex-shrink:0}
 
 /* Consistent ~12vh inter-section spacing (6vh top + 6vh bottom) and constrained section titles */
 .band{width:100%;padding:6vh 0;scroll-margin-top:86px}
@@ -645,7 +661,8 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
       <h1 class="hero-title" aria-label="Veritas MUN"><span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:0">V</span><span class="hero-char" style="--ci:1">E</span><span class="hero-char" style="--ci:2">R</span><span class="hero-char" style="--ci:3">I</span><span class="hero-char" style="--ci:4">T</span><span class="hero-char" style="--ci:5">A</span><span class="hero-char" style="--ci:6">S</span></span> <span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:7">M</span><span class="hero-char" style="--ci:8">U</span><span class="hero-char" style="--ci:9">N</span></span></h1>
       <p class="rise hero-tag">Where diplomacy meets truth</p>
       <div class="hero-actions">
-        <a class="btn-solid" href="/apply">Apply as Security</a>
+        <a class="btn-solid" href="/apply?track=volunteers">Apply as Volunteer</a>
+        <a class="btn-outline" href="/apply?track=security">Apply as Security</a>
       </div>
     </div>
   </section>
@@ -764,10 +781,17 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
         <span class="section-num" aria-hidden="true">06</span>
         <h2 class="ink-heading">Apply</h2>
       </div>
-      <div class="about-prose" style="margin-bottom:30px">
-        <p>Applications for the Veritas MUN Security Department are now open. Share your previous conference experience, proof documents, and situational responses for Executive Board review.</p>
+      <div class="apply-open-banner">
+        <span class="apply-open-dot" aria-hidden="true"></span>
+        <span>Volunteer Applications: Open</span>
       </div>
-      <a class="btn-solid" href="/apply">Apply as Security</a>
+      <div class="about-prose" style="margin-bottom:30px">
+        <p>Applications for the Veritas MUN Volunteer Department are now open. Submit your experience, supporting proof files, and department responses for Executive Board review.</p>
+      </div>
+      <div class="hero-actions">
+        <a class="btn-solid" href="/apply?track=volunteers">Apply as Volunteer</a>
+        <a class="btn-outline" href="/apply?track=security">Apply as Security</a>
+      </div>
     </div>
   </section>
 
@@ -2957,8 +2981,6 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     }
     var tag = $('.hero-tag');
     if (tag && hero.tagline) tag.textContent = hero.tagline;
-    var cta = $('.hero-actions .btn-solid');
-    if (cta && hero.ctaLabel) cta.textContent = hero.ctaLabel;
   }
 
   function renderAboutSection(about) {
