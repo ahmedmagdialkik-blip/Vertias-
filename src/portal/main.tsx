@@ -17,12 +17,27 @@ import {
   type SecurityGrade,
   type SecurityProofMeta
 } from '../utils/securityApplicationLogic';
+import {
+  mapAuthErrorMessage,
+  MIN_AUTH_PASSWORD_LENGTH,
+  normalizeAuthPath,
+  parseAuthUrlCallback,
+  resolveInitialAuthMode,
+  resolvePortalGate,
+  resolveSignupOutcome,
+  validateAuthSubmission,
+  type AuthMode
+} from '../utils/portalAuthLogic';
 import {LayoutDashboard,ClipboardList,Users,UserRound,Megaphone,History,Globe,ChevronRight,ExternalLink,LogOut,FileText} from 'lucide-react';
 
 // Publishable key: safe in the browser. All access is enforced by Row Level Security in the database.
 const PROOFS_BUCKET='application-proofs';
+const SUPABASE_URL=(import.meta.env?.VITE_SUPABASE_URL||'').trim()||'https://iaionntcwjblvndmdesw.supabase.co';
+const SUPABASE_KEY=(import.meta.env?.VITE_SUPABASE_ANON_KEY||'').trim()||'sb_publishable_1Qg2Z-_1-QvviWwr-ZM9_w_3nmqnxX7';
 
-const sb:any=createClient('https://iaionntcwjblvndmdesw.supabase.co','sb_publishable_1Qg2Z-_1-QvviWwr-ZM9_w_3nmqnxX7');
+const sb:any=createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}
+});
 
 const css=`*{box-sizing:border-box}body{margin:0;background:#EDE6D6;color:#1A1217;font:18px 'Cormorant Garamond',Georgia,serif}
 h1,h2,h3,.brand{font-family:Cinzel,serif;font-weight:600}.c{padding:60px 24px;text-align:center}
@@ -33,7 +48,7 @@ input,textarea,select{font:inherit;padding:7px 9px;border:1px solid #BAB1A0;back
 textarea{width:100%;min-height:90px}.btn{background:#1A1217;color:#EDE6D6;border:1px solid #1A1217;padding:9px 18px;font:inherit;cursor:pointer;border-radius:2px;text-decoration:none;display:inline-block}.btn:hover{background:#30262B;border-color:#30262B}.btn.red{background:#8a2b2b}.btn.ghost{background:none;color:#1A1217;border:1px solid #BAB1A0}.btn.ghost:hover{background:#E5DDCF;border-color:#80766F}.btn:disabled{opacity:.5}
 .tw{overflow-x:auto;margin:14px 0}table{border-collapse:collapse;width:100%;font-size:16px}td,th{border-bottom:1px solid #BAB1A0;padding:6px;text-align:left;vertical-align:top}th{font-family:Cinzel,serif;font-size:.8rem}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.card{background:#F7F2E6;padding:18px;border:1px solid #BAB1A0;border-left:3px solid #2F6B34}.card b{font-size:2.2rem;display:block}
-.box{max-width:440px;margin:8vh auto;padding:30px;background:#F7F2E6;border:1px solid #BAB1A0;box-shadow:3px 5px 0 #BAB1A055}.box input,.box select,.box textarea{width:100%;margin:8px 0}.msg{margin:10px 0;color:#2F6B34}
+.box{max-width:440px;margin:8vh auto;padding:30px;background:#F7F2E6;border:1px solid #BAB1A0;box-shadow:3px 5px 0 #BAB1A055}.box input,.box select,.box textarea{width:100%;margin:8px 0}.msg{margin:10px 0;color:#2F6B34}.box .err{margin:10px 0;color:#8a2b2b;font-weight:600}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
 .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.8rem;background:#1A121722;margin-left:6px;font-family:Cormorant Garamond,serif}.badge.g{background:#2F6B3433;color:#1F4A25}.badge.r{background:#8a2b2b33;color:#6b1f1f}
 .tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{background:none;border:1px solid #BAB1A0;padding:6px 14px;font:inherit;cursor:pointer;color:#1A1217}.tabs button.on{background:#1A1217;color:#EDE6D6}
@@ -247,27 +262,134 @@ const STEP_LABELS=[
 ] as const;
 const GRADE_OPTIONS:readonly SecurityGrade[]=['10','11','12','First Year University'];
 
-function Auth({recovery}:any){
-  const [mode,setMode]=useState<string>(recovery?'reset':'in');
-  const [email,setEmail]=useState('');const [pw,setPw]=useState('');const [pw2,setPw2]=useState('');const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);
-  const go=async(e:any)=>{e.preventDefault();setMsg('');const em=email.trim().toLowerCase();
-    if((mode==='up'||mode==='reset')&&pw!==pw2){setMsg('The passwords do not match.');return}
+function Auth({recovery,path,initialMessage,initialIsError}:any){
+  const [mode,setMode]=useState<AuthMode>(()=>resolveInitialAuthMode(path,Boolean(recovery)));
+  const [email,setEmail]=useState('');
+  const [pw,setPw]=useState('');
+  const [pw2,setPw2]=useState('');
+  const [msg,setMsg]=useState(initialMessage||'');
+  const [isErr,setIsErr]=useState(Boolean(initialIsError));
+  const [resendEmail,setResendEmail]=useState('');
+  const [busy,setBusy]=useState(false);
+
+  useEffect(()=>{
+    if(recovery)setMode('reset');
+    else setMode(prev=>{
+      const norm=normalizeAuthPath(path);
+      if(norm==='/signup'&&prev==='in')return 'up';
+      if(norm==='/login'&&prev==='up')return 'in';
+      return prev;
+    });
+  },[recovery,path]);
+
+  useEffect(()=>{
+    if(initialMessage){setMsg(initialMessage);setIsErr(Boolean(initialIsError))}
+  },[initialMessage,initialIsError]);
+
+  const switchMode=(next:AuthMode)=>{
+    setMode(next);
+    setMsg('');
+    setIsErr(false);
+    setResendEmail('');
+    const norm=normalizeAuthPath(location.pathname);
+    if(norm==='/login'||norm==='/signup'){
+      const target=next==='up'?'/signup':'/login';
+      if(norm!==target)window.history.replaceState(null,'',target);
+    }
+  };
+
+  const resendConfirmation=async()=>{
+    const target=(resendEmail||email).trim().toLowerCase();
+    if(!target)return;
     setBusy(true);
-    if(mode==='in'){const {error}=await sb.auth.signInWithPassword({email:em,password:pw});if(error)setMsg(/confirm/i.test(error.message)?'Please confirm your email first. Check your inbox for the confirmation message.':'Wrong email or password. If you forgot it, use Forgot password.')}
-    else if(mode==='up'){const {data,error}=await sb.auth.signUp({email:em,password:pw,options:{emailRedirectTo:location.origin+'/login'}});
-      if(error)setMsg(/database error|not on the team/i.test(error.message)?"This email isn't on the team list. Use the email you gave on the team form, or ask an admin to add it.":/already registered/i.test(error.message)?'This email already has an account. Sign in, or use Forgot password.':error.status===429?'Too many attempts. Try again in a few minutes.':error.message);
-      else if(!data.session){const r=await sb.auth.signInWithPassword({email:em,password:pw});if(r.error)setMsg('Account created. Now sign in with your email and password.')}}
-    else if(mode==='forgot'){await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+'/login'});setMsg('If that email has an account, a reset link is on its way.')}
-    else{const {error}=await sb.auth.updateUser({password:pw});setMsg(error?error.message:'Password updated.');if(!error)setTimeout(()=>{location.href='/account'},800)}
-    setBusy(false)};
-  const t:any={in:'Sign in',up:'Create account',forgot:'Reset password',reset:'Choose a new password'};
+    const {error}=await sb.auth.resend({
+      type:'signup',
+      email:target,
+      options:{emailRedirectTo:location.origin+'/login'}
+    });
+    setBusy(false);
+    if(error){
+      const mapped=mapAuthErrorMessage('up',error);
+      setIsErr(true);
+      setMsg(mapped.message);
+    }else{
+      setIsErr(false);
+      setMsg(`Confirmation email sent to ${target}. Check your inbox and spam folder.`);
+    }
+  };
+
+  const go=async(e:any)=>{
+    e.preventDefault();
+    setMsg('');
+    setIsErr(false);
+    setResendEmail('');
+    const em=email.trim().toLowerCase();
+    const validationErr=validateAuthSubmission(mode,em,pw,pw2);
+    if(validationErr){
+      setIsErr(true);
+      setMsg(validationErr);
+      return;
+    }
+
+    setBusy(true);
+    try{
+      if(mode==='in'){
+        const {error}=await sb.auth.signInWithPassword({email:em,password:pw});
+        if(error){
+          const mapped=mapAuthErrorMessage('in',error);
+          setIsErr(true);
+          setMsg(mapped.message);
+          if(mapped.showResend)setResendEmail(em);
+        }
+      }else if(mode==='up'){
+        const result=await sb.auth.signUp({
+          email:em,
+          password:pw,
+          options:{emailRedirectTo:location.origin+'/login'}
+        });
+        const outcome=resolveSignupOutcome(result);
+        setMsg(outcome.message);
+        setIsErr(outcome.status==='error'||outcome.status==='already_registered');
+        if(outcome.canResend)setResendEmail(em);
+      }else if(mode==='forgot'){
+        const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+'/login'});
+        if(error){
+          const mapped=mapAuthErrorMessage('forgot',error);
+          setIsErr(true);
+          setMsg(mapped.message);
+        }else{
+          setIsErr(false);
+          setMsg('If that email has an account, a reset link is on its way. Check your inbox and spam folder.');
+        }
+      }else{
+        const {error}=await sb.auth.updateUser({password:pw});
+        if(error){
+          const mapped=mapAuthErrorMessage('reset',error);
+          setIsErr(true);
+          setMsg(mapped.message);
+        }else{
+          setIsErr(false);
+          setMsg('Password updated. Redirecting to your account...');
+          setTimeout(()=>{location.href='/account'},800);
+        }
+      }
+    }finally{
+      setBusy(false);
+    }
+  };
+
+  const t:Record<AuthMode,string>={in:'Sign in',up:'Create account',forgot:'Reset password',reset:'Choose a new password'};
   return <form className="box" onSubmit={go}><h2 style={{margin:0}}>Veritas MUN</h2><h3>{t[mode]}</h3>
-    {mode==='up'&&<p>Use the email you gave on the team form. Choose a password and we'll set up your role automatically.</p>}
+    {mode==='up'&&<p>Use the email you gave on the team form. Choose a password (at least {MIN_AUTH_PASSWORD_LENGTH} characters) and confirm your email before signing in.</p>}
     {mode!=='reset'&&<input type="email" required placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} aria-label="Email" autoComplete="email"/>}
-    {mode!=='forgot'&&<input type="password" required placeholder={mode==='in'?'Password':'New password'} value={pw} onChange={e=>setPw(e.target.value)} aria-label="Password" autoComplete={mode==='in'?'current-password':'new-password'}/>}
-    {(mode==='up'||mode==='reset')&&<input type="password" required placeholder="Repeat password" value={pw2} onChange={e=>setPw2(e.target.value)} aria-label="Repeat password" autoComplete="new-password"/>}
-    <button className="btn" disabled={busy}>{busy?'Please wait...':t[mode]}</button><div className="msg" role="status">{msg}</div>
-    {mode!=='reset'&&<div className="toolbar">{mode!=='in'&&<a href="#" onClick={e=>{e.preventDefault();setMode('in');setMsg('')}}>Sign in</a>}{mode!=='up'&&<a href="#" onClick={e=>{e.preventDefault();setMode('up');setMsg('')}}>Create account</a>}{mode==='in'&&<a href="#" onClick={e=>{e.preventDefault();setMode('forgot');setMsg('')}}>Forgot password?</a>}</div>}</form>;
+    {mode!=='forgot'&&<input type="password" required minLength={mode==='up'||mode==='reset'?MIN_AUTH_PASSWORD_LENGTH:undefined} placeholder={mode==='in'?'Password':'New password'} value={pw} onChange={e=>setPw(e.target.value)} aria-label="Password" autoComplete={mode==='in'?'current-password':'new-password'}/>}
+    {(mode==='up'||mode==='reset')&&<input type="password" required minLength={MIN_AUTH_PASSWORD_LENGTH} placeholder="Repeat password" value={pw2} onChange={e=>setPw2(e.target.value)} aria-label="Repeat password" autoComplete="new-password"/>}
+    <div className="toolbar" style={{margin:'10px 0 0'}}>
+      <button className="btn" disabled={busy}>{busy?'Please wait...':t[mode]}</button>
+      {resendEmail&&<button type="button" className="btn ghost" disabled={busy} onClick={resendConfirmation}>Resend confirmation email</button>}
+    </div>
+    <div className={isErr?'err':'msg'} role={isErr?'alert':'status'}>{msg}</div>
+    {mode!=='reset'&&<div className="toolbar">{mode!=='in'&&<a href="/login" onClick={e=>{e.preventDefault();switchMode('in')}}>Sign in</a>}{mode!=='up'&&<a href="/signup" onClick={e=>{e.preventDefault();switchMode('up')}}>Create account</a>}{mode==='in'&&<a href="#" onClick={e=>{e.preventDefault();switchMode('forgot')}}>Forgot password?</a>}</div>}</form>;
 }
 
 // ---------- Public application form (/apply) ----------
@@ -903,7 +1025,7 @@ function Roster({log}:any){
     const seen=new Set<string>();const bad:string[]=[];const out:any[]=[];
     rows.slice(1).forEach((r,i)=>{const email=(r[ix('email')]||'').trim().toLowerCase();const name=(r[ix('full_name')]||'').trim();
       if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){bad.push('row '+(i+2));return}if(seen.has(email)){bad.push('duplicate row '+(i+2));return}seen.add(email);
-      out.push({full_name:name,email,phone:ix('phone')>=0?r[ix('phone')]?.trim():null,department:ix('department')>=0?r[ix('department')]?.trim():null,position:ix('position')>=0?r[ix('position')]?.trim():null})});
+      out.push({full_name:name,email,phone:ix('phone')>=0?(r[ix('phone')]||'').trim():'',department:ix('department')>=0?(r[ix('department')]||'').trim():'',position:ix('position')>=0?((r[ix('position')]||'').trim()||'Member'):'Member'})});
     if(!out.length){setMsg('Nothing valid to import. Skipped: '+bad.join(', '));return}
     if(!confirm(`Import ${out.length} people? ${bad.length} rows will be skipped (missing or invalid email, or duplicates).`))return;
     const {error}=await sb.from('roster').upsert(out,{onConflict:'email'});setMsg(error?error.message:`Imported ${out.length}. Skipped: ${bad.join(', ')||'none'}`);
@@ -1023,16 +1145,123 @@ function Admin({me}:any){
   </div>;
 }
 function App(){
-  const [s,setS]=useState<any>(undefined);const [me,setMe]=useState<any>(undefined);const [rec,setRec]=useState(false);
-  useEffect(()=>{sb.auth.getSession().then(({data}:any)=>setS(data.session));const {data:l}=sb.auth.onAuthStateChange((ev:any,x:any)=>{if(ev==='PASSWORD_RECOVERY')setRec(true);setS(x)});return()=>l.subscription.unsubscribe()},[]);
-  useEffect(()=>{if(s)sb.from('profiles').select('*').eq('id',s.user.id).maybeSingle().then(({data}:any)=>setMe(data));else setMe(undefined)},[s]);
-  const path=location.pathname.replace(/\/$/,'');
+  const [s,setS]=useState<any>(undefined);
+  const [me,setMe]=useState<any>(undefined);
+  const [profileLoading,setProfileLoading]=useState<boolean>(false);
+  const [profileError,setProfileError]=useState<string|null>(null);
+  const [rec,setRec]=useState(false);
+  const [authNotice,setAuthNotice]=useState<{text:string;isError:boolean}|null>(null);
+  const [path,setPath]=useState<string>(()=>normalizeAuthPath(location.pathname));
+
+  useEffect(()=>{
+    const onPop=()=>setPath(normalizeAuthPath(location.pathname));
+    window.addEventListener('popstate',onPop);
+    return()=>window.removeEventListener('popstate',onPop);
+  },[]);
+
+  useEffect(()=>{
+    let active=true;
+    const {data:l}=sb.auth.onAuthStateChange((ev:any,x:any)=>{
+      if(!active)return;
+      if(ev==='PASSWORD_RECOVERY')setRec(true);
+      if(ev==='SIGNED_OUT'||ev==='USER_UPDATED')setRec(false);
+      setS(x);
+    });
+
+    (async()=>{
+      const cb=parseAuthUrlCallback(location.search,location.hash);
+      if(cb.isRecovery&&active)setRec(true);
+
+      if(cb.errorMessage){
+        if(active)setAuthNotice({text:cb.errorMessage,isError:true});
+        window.history.replaceState(null,'',location.pathname);
+      }else if(cb.code){
+        const {error}=await sb.auth.exchangeCodeForSession(cb.code);
+        const cleanUrl=new URL(location.href);
+        cleanUrl.searchParams.delete('code');
+        cleanUrl.searchParams.delete('state');
+        window.history.replaceState(null,'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+        if(error&&active){
+          setAuthNotice({
+            text:'Confirmation link processed or opened in a different browser. Please sign in with your email and password.',
+            isError:true
+          });
+        }
+      }else if(cb.tokenHash&&cb.otpType){
+        const {error}=await sb.auth.verifyOtp({token_hash:cb.tokenHash,type:cb.otpType});
+        const cleanUrl=new URL(location.href);
+        cleanUrl.searchParams.delete('token_hash');
+        cleanUrl.searchParams.delete('type');
+        window.history.replaceState(null,'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+        if(error&&active){
+          setAuthNotice({text:error.message||'Email link could not be verified.',isError:true});
+        }else if(cb.otpType==='recovery'&&active){
+          setRec(true);
+        }
+      }
+
+      const {data}=await sb.auth.getSession();
+      if(active)setS(data.session);
+    })();
+
+    return()=>{
+      active=false;
+      l.subscription.unsubscribe();
+    };
+  },[]);
+
+  const loadProfile=useCallback(async(userId:string)=>{
+    setProfileLoading(true);
+    setProfileError(null);
+    const {data,error}=await sb.from('profiles').select('*').eq('id',userId).maybeSingle();
+    if(error){
+      setProfileError(error.message||'Could not load your profile record.');
+      setMe(null);
+    }else{
+      setMe(data||null);
+    }
+    setProfileLoading(false);
+  },[]);
+
+  useEffect(()=>{
+    const uid=s?.user?.id;
+    if(uid){
+      setMe(undefined);
+      loadProfile(uid);
+    }else{
+      setMe(undefined);
+      setProfileError(null);
+      setProfileLoading(false);
+    }
+  },[s?.user?.id,loadProfile]);
+
   if(path==='/apply')return <Apply/>;
-  if(s===undefined)return <p className="c">Loading...</p>;
-  if(!s||rec)return <Auth recovery={rec}/>;
-  if(me===undefined)return <p className="c">Loading...</p>;
-  if(!me||!me.active){const wait=me&&(me.role==='admin'||me.role==='head');return <div className="box"><h2>{wait?'Waiting for approval':'No access'}</h2><p>{wait?'Your account is created. An admin needs to approve it before you can use the portal. Ask the Secretariat or IT.':'This account is not active. Contact an admin.'}</p><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div>}
-  if(path==='/admin')return (me.role==='admin'||me.role==='head')?<Admin me={me}/>:<div className="box"><h2>Access denied</h2><p>This area is for the Secretariat, IT and department heads.</p><a className="btn" href="/account">My account</a></div>;
+
+  const gate=resolvePortalGate({
+    sessionLoading:s===undefined,
+    hasSession:Boolean(s),
+    isRecovery:rec,
+    profileLoading:Boolean(s)&&(profileLoading||me===undefined),
+    profileError,
+    profile:me||null,
+    pathname:path
+  });
+
+  if(gate==='loading_session'||gate==='loading_profile')return <p className="c">Loading...</p>;
+  if(gate==='auth')return <Auth recovery={rec} path={path} initialMessage={authNotice?.text} initialIsError={authNotice?.isError}/>;
+  if(gate==='profile_error'){
+    return <div className="box"><h2>Could not load account</h2><p>{profileError}</p><div className="toolbar"><button className="btn" onClick={()=>s?.user?.id&&loadProfile(s.user.id)}>Retry</button><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div></div>;
+  }
+  if(gate==='missing_profile'){
+    return <div className="box"><h2>Profile not found</h2><p>You signed in as <b>{s?.user?.email}</b>, but no staff profile record was found for this account. Make sure your email is on the team roster and ask an admin to check your profile.</p><div className="toolbar"><button className="btn" onClick={()=>s?.user?.id&&loadProfile(s.user.id)}>Retry</button><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div></div>;
+  }
+  if(gate==='waiting_approval'){
+    return <div className="box"><h2>Waiting for approval</h2><p>Your account ({me.email||s?.user?.email}) is created and confirmed. An admin needs to mark your account Active in Accounts before you can access the portal.</p><div className="toolbar"><button className="btn" onClick={()=>s?.user?.id&&loadProfile(s.user.id)}>Check again</button><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div></div>;
+  }
+  if(gate==='access_denied'){
+    return <div className="box"><h2>Access denied</h2><p>This area is for the Secretariat, IT and department heads.</p><a className="btn" href="/account">My account</a></div>;
+  }
+  if(gate==='admin')return <Admin me={me}/>;
   return <Account me={me}/>;
 }
 

@@ -1,10 +1,15 @@
 {
   "rewrites": [
     { "source": "/admin", "destination": "/portal/index.html" },
+    { "source": "/admin/", "destination": "/portal/index.html" },
     { "source": "/login", "destination": "/portal/index.html" },
+    { "source": "/login/", "destination": "/portal/index.html" },
     { "source": "/signup", "destination": "/portal/index.html" },
+    { "source": "/signup/", "destination": "/portal/index.html" },
     { "source": "/account", "destination": "/portal/index.html" },
+    { "source": "/account/", "destination": "/portal/index.html" },
     { "source": "/apply", "destination": "/portal/index.html" },
+    { "source": "/apply/", "destination": "/portal/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

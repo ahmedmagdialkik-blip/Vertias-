@@ -11,6 +11,12 @@
 <script>
 (function(){
   var p = window.location.pathname || '/';
+  var q = window.location.search || '';
+  var h = window.location.hash || '';
+  if ((p === '/' || p === '') && /(access_token=|refresh_token=|token_hash=|code=|error_description=|error=|type=(signup|recovery|magiclink|email_change|invite))/.test(q + '&' + h)) {
+    window.location.replace('/login' + q + h);
+    return;
+  }
   if (p === '/login' || p === '/signup' || p === '/account' || p === '/admin' || p === '/apply') {
     document.documentElement.classList.add('is-portal-route');
   }
