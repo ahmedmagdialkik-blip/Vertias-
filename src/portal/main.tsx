@@ -44,7 +44,16 @@ import {
   type VolunteerApplicationDraft,
   type VolunteerProofMeta
 } from '../utils/volunteerApplicationLogic';
-import {LayoutDashboard,ClipboardList,Users,UserRound,Megaphone,History,Globe,ChevronRight,ExternalLink,LogOut,FileText} from 'lucide-react';
+import {
+  DEFAULT_APPLICATION_SETTINGS,
+  formatTrackStatusLabel,
+  isTrackCurrentlyOpen,
+  normalizeApplicationSettings,
+  type ApplicationSettings
+} from '../utils/committeesAndSettingsLogic';
+import {CommitteesManagementView} from './components/CommitteesManagementView';
+import {ApplicationsManagementView} from './components/ApplicationsManagementView';
+import {LayoutDashboard,ClipboardList,Users,UserRound,Megaphone,History,Globe,ChevronRight,ExternalLink,LogOut,FileText,Landmark,SlidersHorizontal} from 'lucide-react';
 
 // Publishable key: safe in the browser. All access is enforced by Row Level Security in the database.
 const PROOFS_BUCKET='application-proofs';
@@ -420,18 +429,83 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
 
 function Apply(){
   const [track,setTrack]=useState<'Security'|'Volunteers'>(()=>resolveApplyTrack(location.search));
+  const [settings,setSettings]=useState<ApplicationSettings>(DEFAULT_APPLICATION_SETTINGS);
+  const [loadingSettings,setLoadingSettings]=useState<boolean>(true);
+
+  useEffect(()=>{
+    let active=true;
+    sb.from('site_content')
+      .select('key, value')
+      .eq('key','application_settings')
+      .maybeSingle()
+      .then(({data}:any)=>{
+        if(!active)return;
+        setSettings(normalizeApplicationSettings(data?.value));
+        setLoadingSettings(false);
+      })
+      .catch(()=>{
+        if(active)setLoadingSettings(false);
+      });
+    return()=>{active=false};
+  },[]);
+
   const switchTrack=(next:'Security'|'Volunteers')=>{
     setTrack(next);
     const url=new URL(location.href);
     url.searchParams.set('track',next==='Volunteers'?'volunteers':'security');
     window.history.replaceState(null,'',url.pathname+url.search);
   };
+
+  if(loadingSettings){
+    return <div className="apply-shell">
+      <div className="apply-top">
+        <a className="brand-link" href="/">Veritas MUN</a>
+        <a className="back-link" href="/">&larr; Back to Veritas MUN</a>
+      </div>
+      <div className="apply-card" style={{maxWidth:640}}>
+        <p className="apply-kicker">Veritas MUN</p>
+        <h1 className="apply-title">Checking application status...</h1>
+      </div>
+    </div>;
+  }
+
+  const isOpen=isTrackCurrentlyOpen(settings,track);
+  const otherTrack: 'Security'|'Volunteers'=track==='Security'?'Volunteers':'Security';
+  const otherOpen=isTrackCurrentlyOpen(settings,otherTrack)&&(otherTrack==='Volunteers'?settings.volunteer.visible:settings.security.visible);
+
+  if(!isOpen){
+    const trackHeading=track==='Volunteers'?'Volunteer Department':'Security Department';
+    return <div className="apply-shell">
+      <div className="apply-top">
+        <a className="brand-link" href="/">Veritas MUN</a>
+        {otherOpen&&<button type="button" className="back-link" onClick={()=>switchTrack(otherTrack)}>Apply for {otherTrack}</button>}
+        <a className="back-link" href="/">&larr; Back to Veritas MUN</a>
+      </div>
+      <div className="apply-card" style={{maxWidth:640}}>
+        <div className="tag r" style={{marginBottom:12}}>
+          {track==='Volunteers'?'Volunteer Applications':'Security Applications'} &mdash; {formatTrackStatusLabel(false)}
+        </div>
+        <p className="apply-kicker">{trackHeading}</p>
+        <h1 className="apply-title">Applications are currently closed</h1>
+        <p className="apply-sub">
+          The {trackHeading} is not currently accepting new submissions. Please check back on the Veritas MUN homepage for updates.
+        </p>
+        <div className="toolbar" style={{marginTop:24}}>
+          <a className="btn" href="/">Back to Veritas MUN</a>
+          {otherOpen&&<button type="button" className="btn ghost" onClick={()=>switchTrack(otherTrack)}>
+            {otherTrack==='Volunteers'?settings.volunteer.button_text:settings.security.button_text}
+          </button>}
+        </div>
+      </div>
+    </div>;
+  }
+
   return track==='Security'
-    ? <SecurityApply onVolunteer={()=>switchTrack('Volunteers')}/>
-    : <VolunteerApply onSecurity={()=>switchTrack('Security')}/>;
+    ? <SecurityApply onVolunteer={()=>switchTrack('Volunteers')} showOtherTrack={otherOpen}/>
+    : <VolunteerApply onSecurity={()=>switchTrack('Security')} showOtherTrack={otherOpen}/>;
 }
 
-function VolunteerApply({onSecurity}:any){
+function VolunteerApply({onSecurity,showOtherTrack=true}:any){
   const [draft,setDraft]=useState<VolunteerApplicationDraft>(EMPTY_VOLUNTEER_DRAFT);
   const [files,setFiles]=useState<LocalProofFile[]>([]);
   const [honeypot,setHoneypot]=useState('');
@@ -573,7 +647,7 @@ function VolunteerApply({onSecurity}:any){
     return <div className="apply-shell">
       <div className="apply-top">
         <a className="brand-link" href="/">Veritas MUN</a>
-        <button type="button" className="back-link" onClick={onSecurity}>Apply for Security</button>
+        {showOtherTrack&&<button type="button" className="back-link" onClick={onSecurity}>Apply for Security</button>}
         <a className="back-link" href="/">Return to homepage</a>
       </div>
       <div className="apply-card" style={{maxWidth:640}}>
@@ -593,7 +667,7 @@ function VolunteerApply({onSecurity}:any){
   return <div className="apply-shell">
     <div className="apply-top">
       <a className="brand-link" href="/">Veritas MUN</a>
-      <button type="button" className="back-link" onClick={onSecurity}>Apply for Security</button>
+      {showOtherTrack&&<button type="button" className="back-link" onClick={onSecurity}>Apply for Security</button>}
       <a className="back-link" href="/">&larr; Back to Veritas MUN</a>
     </div>
 
@@ -748,7 +822,7 @@ function VolunteerApply({onSecurity}:any){
   </div>;
 }
 
-function SecurityApply({onVolunteer}:any){
+function SecurityApply({onVolunteer,showOtherTrack=true}:any){
   const [step,setStep]=useState<1|2|3|4>(1);
   const [draft,setDraft]=useState<SecurityApplicationDraft>(EMPTY_SECURITY_DRAFT);
   const [files,setFiles]=useState<LocalProofFile[]>([]);
@@ -905,7 +979,7 @@ function SecurityApply({onVolunteer}:any){
     return <div className="apply-shell">
       <div className="apply-top">
         <a className="brand-link" href="/">Veritas MUN</a>
-        <button type="button" className="back-link" onClick={onVolunteer}>Apply for Volunteers</button><a className="back-link" href="/">Return to homepage</a>
+        {showOtherTrack&&<button type="button" className="back-link" onClick={onVolunteer}>Apply for Volunteers</button>}<a className="back-link" href="/">Return to homepage</a>
       </div>
       <div className="apply-card" style={{maxWidth:640}}>
         <p className="apply-kicker">Application Received</p>
@@ -923,7 +997,7 @@ function SecurityApply({onVolunteer}:any){
   return <div className="apply-shell">
     <div className="apply-top">
       <a className="brand-link" href="/">Veritas MUN</a>
-      <button type="button" className="back-link" onClick={onVolunteer}>Apply for Volunteers</button><a className="back-link" href="/">&larr; Back to Veritas MUN</a>
+      {showOtherTrack&&<button type="button" className="back-link" onClick={onVolunteer}>Apply for Volunteers</button>}<a className="back-link" href="/">&larr; Back to Veritas MUN</a>
     </div>
 
     <form className="apply-card" onSubmit={submit} noValidate>
@@ -1436,13 +1510,13 @@ function Overview(){
 }
 function Admin({me}:any){
   const admin=me.role==='admin';
-  const tabs=admin?['Overview','Applications','Roster','Accounts','Site content','Team cards','Announcements','Audit log']:['Applications'];
+  const tabs=admin?['Overview','Applications','Committees Management','Applications Management','Roster','Accounts','Site content','Team cards','Announcements','Audit log']:['Applications'];
   const [tab,setTab]=useState(tabs[0]);
   const log=(action:string,details:any={})=>sb.from('audit_log').insert({user_id:me.id,action,details});
   const navGroups=admin?[
     {title:'Operations',items:[{label:'Overview',icon:LayoutDashboard},{label:'Applications',icon:ClipboardList}]},
     {title:'Team management',items:[{label:'Roster',icon:Users},{label:'Accounts',icon:UserRound},{label:'Announcements',icon:Megaphone},{label:'Audit log',icon:History}]},
-    {title:'Website',items:[{label:'Site content',icon:Globe},{label:'Team cards',icon:Users}]}
+    {title:'Website',items:[{label:'Committees Management',icon:Landmark},{label:'Applications Management',icon:SlidersHorizontal},{label:'Site content',icon:Globe},{label:'Team cards',icon:Users}]}
   ]:[{title:'Department review',items:[{label:'Applications',icon:ClipboardList}]}];
   const initials=(me.full_name||'VM').split(' ').filter(Boolean).slice(0,2).map((part:string)=>part[0]).join('').toUpperCase();
   return <div className="admin-layout">
@@ -1469,14 +1543,16 @@ function Admin({me}:any){
         </div>
       </header>
       <main className="admin-content">
-        {tab==='Overview'&&<Overview/>}
+        {admin&&tab==='Overview'&&<Overview/>}
         {tab==='Applications'&&<Applications me={me}/>}
-        {tab==='Roster'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / DIRECTORY</p><h1>Team roster</h1><p>Manage roster records and import the approved team list.</p></div></div><Roster log={log}/></div>}
-        {tab==='Accounts'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / ACCESS</p><h1>Accounts</h1><p>Manage registered team accounts, roles and active access.</p></div></div><Accounts log={log}/></div>}
-        {tab==='Site content'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / CONTENT</p><h1>Site content</h1><p>Edit the copy and sections displayed on the public Veritas MUN website.</p></div></div><Content log={log}/></div>}
-        {tab==='Team cards'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / SECRETARIAT</p><h1>Team cards</h1><p>Manage the Secretariat cards shown on the public Veritas MUN website.</p></div></div><Crud table="team_cards" order="sort_order" log={log} cols={[{k:'sort_order',l:'Order',t:'num'},{k:'full_name',l:'Name'},{k:'title',l:'Title'},{k:'photo_url',l:'Photo URL'},{k:'visible',l:'Visible',t:'bool'}]}/></div>}
-        {tab==='Announcements'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / COMMUNICATIONS</p><h1>Announcements</h1><p>Share updates with the whole team, a department, or department heads.</p></div></div><Crud table="announcements" log={log} cols={[{k:'title',l:'Title'},{k:'body',l:'Message',t:'area'},{k:'audience',l:'Audience'}]}/></div>}
-        {tab==='Audit log'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">ADMINISTRATION / HISTORY</p><h1>Audit log</h1><p>A record of administrative changes.</p></div></div><Crud table="audit_log" log={()=>{}} cols={[{k:'created_at',l:'When'},{k:'action',l:'Action'}]}/></div>}
+        {admin&&tab==='Committees Management'&&<CommitteesManagementView sb={sb} log={log}/>}
+        {admin&&tab==='Applications Management'&&<ApplicationsManagementView sb={sb} log={log}/>}
+        {admin&&tab==='Roster'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / DIRECTORY</p><h1>Team roster</h1><p>Manage roster records and import the approved team list.</p></div></div><Roster log={log}/></div>}
+        {admin&&tab==='Accounts'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / ACCESS</p><h1>Accounts</h1><p>Manage registered team accounts, roles and active access.</p></div></div><Accounts log={log}/></div>}
+        {admin&&tab==='Site content'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / CONTENT</p><h1>Site content</h1><p>Edit the copy and sections displayed on the public Veritas MUN website.</p></div></div><Content log={log}/></div>}
+        {admin&&tab==='Team cards'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / SECRETARIAT</p><h1>Team cards</h1><p>Manage the Secretariat cards shown on the public Veritas MUN website.</p></div></div><Crud table="team_cards" order="sort_order" log={log} cols={[{k:'sort_order',l:'Order',t:'num'},{k:'full_name',l:'Name'},{k:'title',l:'Title'},{k:'photo_url',l:'Photo URL'},{k:'visible',l:'Visible',t:'bool'}]}/></div>}
+        {admin&&tab==='Announcements'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / COMMUNICATIONS</p><h1>Announcements</h1><p>Share updates with the whole team, a department, or department heads.</p></div></div><Crud table="announcements" log={log} cols={[{k:'title',l:'Title'},{k:'body',l:'Message',t:'area'},{k:'audience',l:'Audience'}]}/></div>}
+        {admin&&tab==='Audit log'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">ADMINISTRATION / HISTORY</p><h1>Audit log</h1><p>A record of administrative changes.</p></div></div><Crud table="audit_log" log={()=>{}} cols={[{k:'created_at',l:'When'},{k:'action',l:'Action'}]}/></div>}
       </main>
     </div>
   </div>;

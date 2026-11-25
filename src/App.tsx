@@ -7,6 +7,7 @@ import { AdminPage } from './pages/AdminPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import type { TeamCardRow } from './types/database';
+import { normalizeCommitteeRows } from './utils/committeesAndSettingsLogic';
 import { DEFAULT_TEAM_CARDS, mergeSiteContentWithFallback } from './utils/portalLogic';
 
 const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
@@ -22,16 +23,25 @@ const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
         .select('*')
         .eq('visible', true)
         .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('committees')
+        .select('*')
+        .eq('enabled', true)
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
     ])
-      .then(([contentRes, cardsRes]) => {
+      .then(([contentRes, cardsRes, committeesRes]) => {
         if (cancelled) return;
         const content = mergeSiteContentWithFallback(contentRes.data ?? []);
         const cards =
           Array.isArray(cardsRes.data) && cardsRes.data.length > 0
             ? (cardsRes.data as TeamCardRow[])
             : DEFAULT_TEAM_CARDS;
-        window.__veritasApplyPublicData?.({ content, teamCards: cards });
+        const committees = committeesRes.error
+          ? undefined
+          : normalizeCommitteeRows(committeesRes.data ?? []).filter(c => c.enabled);
+        window.__veritasApplyPublicData?.({ content, teamCards: cards, committees });
       })
       .catch(() => {
         // Keep built-in fallback content on transient network failure

@@ -1,3 +1,5 @@
+import type { ApplicationSettings } from '../utils/committeesAndSettingsLogic';
+
 export type UserRole = 'member' | 'head' | 'admin';
 
 export type AnnouncementAudience = 'all' | 'department' | 'heads';
@@ -78,6 +80,7 @@ export interface FullSiteContent {
   faq: TbaSectionContent<FaqItem>;
   register: TbaSectionContent<RegisterItem>;
   settings: SiteSettings;
+  application_settings?: ApplicationSettings;
 }
 
 export interface TeamCardRow {

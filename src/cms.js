@@ -1,78 +1,80 @@
-// Loads content edited in the admin panel and applies it to the public site.
+// Loads content edited in the admin panel and delegates cleanly to the site's unified renderer.
 // If anything fails, the site keeps its built-in content.
-const API = 'https://iaionntcwjblvndmdesw.supabase.co/rest/v1';
-const KEY = 'sb_publishable_1Qg2Z-_1-QvviWwr-ZM9_w_3nmqnxX7'; // public key; the database enforces access rules
-const get = (t, q = '') =>
-  fetch(`${API}/${t}?select=*${q}`, { headers: { apikey: KEY } }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
-const el = (tag, cls, text) => {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  return e;
-};
+import { mergeSiteContentWithFallback } from './utils/portalLogic';
+import { normalizeCommitteeRows } from './utils/committeesAndSettingsLogic';
 
-function style() {
-  const s = document.createElement('style');
-  s.textContent = `.cms-list{display:grid;gap:22px;max-width:46rem}.cms-item{border-top:1px solid currentColor;padding-top:14px}
-.cms-h{margin:0 0 6px;font-family:Cinzel,serif;font-size:1.35rem}.cms-p{margin:4px 0;font-size:1.2rem;line-height:1.5;opacity:.9;white-space:pre-wrap}.cms-when{margin:0;font-size:.95rem;opacity:.7}`;
-  document.head.appendChild(s);
-}
+const SUPABASE_URL = (import.meta.env?.VITE_SUPABASE_URL || '').trim() || 'https://iaionntcwjblvndmdesw.supabase.co';
+const SUPABASE_KEY =
+  (import.meta.env?.VITE_SUPABASE_ANON_KEY || '').trim() || 'sb_publishable_1Qg2Z-_1-QvviWwr-ZM9_w_3nmqnxX7';
+const API = `${SUPABASE_URL.replace(/\/+$/, '')}/rest/v1`;
 
-function section(id, v) {
-  const stage = document.querySelector(`#${id} .tba-stage`);
-  if (!stage || !v || typeof v !== 'object' || v.tba !== false) return; // still TBA
-  const box = el('div', 'cms-list');
-  (v.items || []).forEach((it) => {
-    const row = el('div', 'cms-item');
-    if (id === 'faq') row.append(el('h3', 'cms-h', it.q), el('p', 'cms-p', it.a));
-    else if (id === 'schedule') row.append(el('p', 'cms-when', it.when), el('h3', 'cms-h', it.title), el('p', 'cms-p', it.details));
-    else row.append(el('h3', 'cms-h', it.name), el('p', 'cms-p', it.details));
-    box.append(row);
-  });
-  if (box.children.length) stage.replaceWith(box);
-}
+const get = (table, query = '') =>
+  fetch(`${API}/${table}?select=*${query}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
 
-function cards(rows) {
-  const cl = document.querySelector('.secretariat-cluster');
-  if (!cl || !rows.length) return;
-  const ents = [...cl.querySelectorAll('.secretariat-entry')];
-  const used = new Set();
-  const nameOf = (x) => (x.querySelector('.secretariat-name')?.textContent || '').trim().toLowerCase();
-  rows.sort((a, b) => a.sort_order - b.sort_order).forEach((r) => {
-    let e = ents.find((x) => nameOf(x) === r.full_name.trim().toLowerCase());
-    if (!e) {
-      e = ents[0] && ents[0].cloneNode(true);
-      if (!e) return;
-      e.className = 'secretariat-entry';
-      e.querySelector('.secretariat-name').textContent = r.full_name;
-      cl.append(e);
+function normalizeLegacyContentRows(rows) {
+  const mapped = [];
+  const rowMap = new Map();
+  for (const r of rows || []) {
+    if (!r || !r.key) continue;
+    rowMap.set(r.key, r.value);
+    mapped.push(r);
+  }
+  // Support legacy flat keys ('hero_tagline', 'about_text', '{tba:false}') alongside structured keys
+  if (typeof rowMap.get('hero_tagline') === 'string' && rowMap.get('hero_tagline').trim() && !rowMap.has('hero')) {
+    mapped.push({ key: 'hero', value: { title: 'VERITAS MUN', tagline: rowMap.get('hero_tagline').trim() } });
+  }
+  if (typeof rowMap.get('about_text') === 'string' && rowMap.get('about_text').trim() && !rowMap.has('about')) {
+    const paragraphs = rowMap
+      .get('about_text')
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    mapped.push({ key: 'about', value: { paragraphs } });
+  }
+  ['committees', 'schedule', 'faq'].forEach((secKey) => {
+    const val = rowMap.get(secKey);
+    if (val && typeof val === 'object' && typeof val.tba === 'boolean' && typeof val.showTba !== 'boolean') {
+      const normalizedItems = Array.isArray(val.items)
+        ? val.items.map((it) => {
+            if (secKey === 'faq' && 'q' in it) return { question: it.q || '', answer: it.a || '' };
+            if (secKey === 'schedule' && 'when' in it) return { dateTime: it.when || '', title: it.title || '', details: it.details || '' };
+            return it;
+          })
+        : [];
+      mapped.push({
+        key: secKey,
+        value: { showTba: val.tba, tbaSubtitle: val.tbaSubtitle || 'To be announced.', items: normalizedItems }
+      });
     }
-    used.add(e);
-    const role = e.querySelector('.secretariat-role');
-    if (role && r.title) role.textContent = r.title;
-    const img = e.querySelector('img');
-    if (img && r.photo_url) { img.src = r.photo_url; img.alt = r.full_name; img.parentElement.classList.remove('is-missing'); }
   });
-  ents.forEach((e) => { if (!used.has(e)) e.style.display = 'none'; });
+  return mergeSiteContentWithFallback(mapped);
 }
 
 (async () => {
   try {
-    const [c, t] = await Promise.all([get('site_content'), get('team_cards', '&order=sort_order')]);
-    const m = Object.fromEntries(c.map((r) => [r.key, r.value]));
-    style();
-    if (typeof m.hero_tagline === 'string' && m.hero_tagline.trim()) {
-      const tag = document.querySelector('.hero-tag');
-      if (tag) tag.textContent = m.hero_tagline;
+    const [siteRows, teamRows, committeeRows] = await Promise.all([
+      get('site_content').catch(() => null),
+      get('team_cards', '&visible=eq.true&order=sort_order.asc').catch(() => null),
+      get('committees', '&enabled=eq.true&order=sort_order.asc,created_at.asc').catch(() => null)
+    ]);
+
+    const payload = {};
+    if (Array.isArray(siteRows)) {
+      payload.content = normalizeLegacyContentRows(siteRows);
     }
-    if (typeof m.about_text === 'string' && m.about_text.trim()) {
-      const box = document.querySelector('.about-prose');
-      if (box) {
-        box.textContent = '';
-        m.about_text.split(/\n\s*\n/).forEach((p, i) => box.append(el('p', i === 0 ? 'dropcap' : '', p.trim())));
-      }
+    if (Array.isArray(teamRows) && teamRows.length > 0) {
+      payload.teamCards = teamRows;
     }
-    ['committees', 'schedule', 'faq'].forEach((id) => section(id, m[id]));
-    cards(t);
-  } catch (e) { /* keep built-in content */ }
+    if (Array.isArray(committeeRows)) {
+      payload.committees = normalizeCommitteeRows(committeeRows).filter((c) => c.enabled);
+    }
+
+    if (typeof window.__veritasApplyPublicData === 'function') {
+      window.__veritasApplyPublicData(payload);
+    }
+  } catch {
+    // Keep built-in fallback content on transient failure
+  }
 })();

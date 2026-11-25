@@ -6,6 +6,7 @@ import {
   Globe,
   HeartHandshake,
   Inbox,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -13,6 +14,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   UserCircle,
   UserCog,
   Users,
@@ -39,7 +41,9 @@ import {
 import { AccountView } from './AccountView';
 import { AccountsView } from './AccountsView';
 import { AnnouncementsView } from './AnnouncementsView';
+import { ApplicationsManagementView } from './ApplicationsManagementView';
 import { ApplicationsView } from './ApplicationsView';
+import { CommitteesManagementView } from './CommitteesManagementView';
 import { ContentView } from './ContentView';
 import { DashboardOverview } from './DashboardOverview';
 import { RosterView } from './RosterView';
@@ -58,6 +62,8 @@ const SECTION_ICONS: Record<AdminSectionId, React.ComponentType<{ className?: st
   roster: Users,
   accounts: UserCog,
   announcements: Megaphone,
+  committees_management: Landmark,
+  applications_management: SlidersHorizontal,
   content: Globe,
   settings: Settings,
   account: UserCircle
@@ -190,6 +196,18 @@ export const AdminShell: React.FC<AdminShellProps> = ({ me }) => {
       }
     },
     [me.role, me.department]
+  );
+
+  const writeAuditLog = useCallback(
+    async (action: string, details: Record<string, unknown> = {}) => {
+      await sb.from('audit_logs').insert({
+        actor_id: me.id,
+        actor_email: me.email,
+        action,
+        details
+      });
+    },
+    [me.id, me.email]
   );
 
   const notifications = useMemo(
@@ -604,6 +622,14 @@ export const AdminShell: React.FC<AdminShellProps> = ({ me }) => {
               onRefresh={loadPortalData}
               onToast={showToast}
             />
+          )}
+
+          {activeSection === 'committees_management' && isAdmin && (
+            <CommitteesManagementView sb={sb} log={writeAuditLog} />
+          )}
+
+          {activeSection === 'applications_management' && isAdmin && (
+            <ApplicationsManagementView sb={sb} log={writeAuditLog} />
           )}
 
           {activeSection === 'content' && isAdmin && (

@@ -8,6 +8,8 @@ export type AdminSectionId =
   | 'roster'
   | 'accounts'
   | 'announcements'
+  | 'committees_management'
+  | 'applications_management'
   | 'content'
   | 'settings'
   | 'account';
@@ -105,6 +107,8 @@ const ALL_NAV_ITEMS: readonly AdminNavItem[] = [
   { id: 'roster', label: 'Team / Roster', group: 'Administration', breadcrumb: 'Team / Roster' },
   { id: 'accounts', label: 'Accounts', group: 'Administration', breadcrumb: 'Accounts' },
   { id: 'announcements', label: 'Announcements', group: 'Administration', breadcrumb: 'Announcements' },
+  { id: 'committees_management', label: 'Committees Management', group: 'Site & System', breadcrumb: 'Committees Management' },
+  { id: 'applications_management', label: 'Applications Management', group: 'Site & System', breadcrumb: 'Applications Management' },
   { id: 'content', label: 'Website Content', group: 'Site & System', breadcrumb: 'Website Content' },
   { id: 'settings', label: 'Settings', group: 'Site & System', breadcrumb: 'Settings' },
   { id: 'account', label: 'My Account', group: 'Workspace', breadcrumb: 'My Account' }

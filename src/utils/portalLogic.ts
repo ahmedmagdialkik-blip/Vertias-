@@ -6,6 +6,10 @@ import type {
   TbaSectionContent,
   TeamCardRow
 } from '../types/database';
+import {
+  DEFAULT_APPLICATION_SETTINGS,
+  normalizeApplicationSettings
+} from './committeesAndSettingsLogic';
 
 export const DEFAULT_SITE_CONTENT: FullSiteContent = {
   hero: {
@@ -43,7 +47,8 @@ export const DEFAULT_SITE_CONTENT: FullSiteContent = {
     site_name: 'Veritas MUN',
     registration_open: false,
     contact_email: ''
-  }
+  },
+  application_settings: DEFAULT_APPLICATION_SETTINGS
 };
 
 export const DEFAULT_TEAM_CARDS: TeamCardRow[] = [
@@ -381,7 +386,8 @@ export function mergeSiteContentWithFallback(
           ? settingsRaw.registration_open
           : DEFAULT_SITE_CONTENT.settings.registration_open,
       contact_email: typeof settingsRaw?.contact_email === 'string' ? settingsRaw.contact_email : ''
-    }
+    },
+    application_settings: normalizeApplicationSettings(map.get('application_settings'))
   };
 }
 

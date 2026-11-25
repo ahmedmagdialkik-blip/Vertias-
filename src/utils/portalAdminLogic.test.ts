@@ -50,8 +50,10 @@ const sampleApps: ApplicationRecordLike[] = [
 
 test('getAuthorizedNavItems enforces strict RBAC visibility for admin, heads, and members', () => {
   const adminNav = getAuthorizedNavItems('admin', 'IT');
-  assert.equal(adminNav.length, 10);
+  assert.equal(adminNav.length, 12);
   assert.ok(adminNav.some(i => i.id === 'overview'));
+  assert.ok(adminNav.some(i => i.id === 'committees_management'));
+  assert.ok(adminNav.some(i => i.id === 'applications_management'));
   assert.ok(adminNav.some(i => i.id === 'settings'));
 
   const secHeadNav = getAuthorizedNavItems('head', 'Security');
@@ -60,6 +62,8 @@ test('getAuthorizedNavItems enforces strict RBAC visibility for admin, heads, an
     ['security_applications', 'account']
   );
   assert.equal(isSectionAuthorized('overview', 'head', 'Security'), false);
+  assert.equal(isSectionAuthorized('committees_management', 'head', 'Security'), false);
+  assert.equal(isSectionAuthorized('applications_management', 'head', 'Security'), false);
   assert.equal(isSectionAuthorized('volunteer_applications', 'head', 'Security'), false);
   assert.equal(isSectionAuthorized('security_applications', 'head', 'Security'), true);
 

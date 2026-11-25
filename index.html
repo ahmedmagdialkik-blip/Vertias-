@@ -304,12 +304,23 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
 }
 .btn-outline:hover{background:rgba(237,230,214,0.1);border-color:var(--green-bright);color:var(--cream)}
 .btn-outline:focus-visible{outline:2px solid var(--green-bright);outline-offset:4px}
+.apply-status-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 22px}
 .apply-open-banner{
-  display:inline-flex;align-items:center;gap:10px;margin:0 0 22px;padding:7px 14px;
-  border:1px solid rgba(79,154,87,0.55);background:rgba(47,107,52,0.2);color:var(--cream);
+  display:inline-flex;align-items:center;gap:10px;margin:0;padding:7px 14px;
+  border:1px solid rgba(79,154,87,0.68);background:rgba(26,18,23,0.72);color:var(--cream);
   font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
 }
+.apply-open-banner.is-closed{
+  border-color:rgba(186,177,160,0.48);background:rgba(26,18,23,0.64);color:rgba(237,230,214,0.86);
+}
 .apply-open-dot{width:8px;height:8px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 10px var(--green-bright);flex-shrink:0}
+.apply-open-banner.is-closed .apply-open-dot{background:var(--taupe);box-shadow:none}
+.btn-closed{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:52px;padding:14px 28px;background:rgba(26,18,23,0.62);color:rgba(237,230,214,0.76);
+  border:1px solid rgba(186,177,160,0.42);font-family:'Cinzel',serif;font-weight:600;
+  font-size:.86rem;letter-spacing:.12em;text-transform:uppercase;cursor:not-allowed;
+}
 
 /* Consistent ~12vh inter-section spacing (6vh top + 6vh bottom) and constrained section titles */
 .band{width:100%;padding:6vh 0;scroll-margin-top:86px}
@@ -322,21 +333,21 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
   font-family:'Cinzel',serif;font-weight:600;
   font-size:clamp(1rem,1.6vw,1.45rem);letter-spacing:.1em;
   color:var(--accent-num);flex-shrink:0;
-  opacity:0;transform:translateY(22px);
-  transition:opacity .62s cubic-bezier(.16,1,.3,1),transform .72s cubic-bezier(.16,1,.3,1),color .28s ease;
+  opacity:0;transform:translateY(14px);
+  transition:opacity .38s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1),color .28s ease;
   will-change:transform,opacity;
 }
 .section-head.wiped .section-num{opacity:1;transform:translateY(0)}
 .ink-heading{
   font-family:'Cinzel',serif;font-weight:600;
-  font-size:clamp(2.6rem,6vw,5rem);line-height:.98;
+  font-size:clamp(2.6rem,6vw,5rem);line-height:1.02;
   color:var(--fg);letter-spacing:.015em;min-width:0;max-width:100%;
-  opacity:0;transform:translateY(34px);clip-path:inset(0 0 100% 0);
-  transition:opacity .72s cubic-bezier(.16,1,.3,1) .08s,transform .86s cubic-bezier(.16,1,.3,1) .08s,clip-path .86s cubic-bezier(.22,1,.36,1) .08s,color .28s ease;
-  will-change:transform,opacity,clip-path;
+  opacity:0;transform:translateY(18px);
+  transition:opacity .42s cubic-bezier(.16,1,.3,1) .04s,transform .46s cubic-bezier(.16,1,.3,1) .04s,color .28s ease;
+  will-change:transform,opacity;
 }
 .section-head.wiped .ink-heading,.ink-heading.wiped{
-  opacity:1;transform:translateY(0);clip-path:inset(0 0 0 0);
+  opacity:1;transform:translateY(0);
 }
 
 /* 01. Secretariat: draggable printed photographs, Laila largest & in front */
@@ -477,6 +488,10 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
 .dynamic-entry-body{margin-top:6px;font-size:1.2rem;line-height:1.68;color:var(--fg-muted)}
 .dynamic-link{display:inline-flex;align-items:center;margin-top:10px;padding:10px 22px;background:var(--green);color:#EDE6D6;font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;transition:background-color .18s ease}
 .dynamic-link:hover{background:var(--green-d)}
+.committee-entry{display:flex;align-items:flex-start;gap:18px}
+.committee-logo{width:64px;height:64px;object-fit:contain;flex-shrink:0;padding:6px;background:rgba(247,242,230,0.92);border:1px solid rgba(237,230,214,0.25);border-radius:2px}
+.committee-copy{min-width:0;flex:1}
+.committee-copy .dynamic-entry-body{white-space:pre-wrap}
 .register-status{margin-bottom:16px;font-style:italic;font-size:1.18rem;color:var(--accent-num)}
 
 /* Portal routes (/login, /signup, /account, /admin) hide public intro/globe/statue cleanly */
@@ -660,10 +675,6 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
     <div class="hero-content">
       <h1 class="hero-title" aria-label="Veritas MUN"><span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:0">V</span><span class="hero-char" style="--ci:1">E</span><span class="hero-char" style="--ci:2">R</span><span class="hero-char" style="--ci:3">I</span><span class="hero-char" style="--ci:4">T</span><span class="hero-char" style="--ci:5">A</span><span class="hero-char" style="--ci:6">S</span></span> <span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:7">M</span><span class="hero-char" style="--ci:8">U</span><span class="hero-char" style="--ci:9">N</span></span></h1>
       <p class="rise hero-tag">Where diplomacy meets truth</p>
-      <div class="hero-actions">
-        <a class="btn-solid" href="/apply?track=volunteers">Apply as Volunteer</a>
-        <a class="btn-outline" href="/apply?track=security">Apply as Security</a>
-      </div>
     </div>
   </section>
 
@@ -781,14 +792,20 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
         <span class="section-num" aria-hidden="true">06</span>
         <h2 class="ink-heading">Apply</h2>
       </div>
-      <div class="apply-open-banner">
-        <span class="apply-open-dot" aria-hidden="true"></span>
-        <span>Volunteer Applications: Open</span>
+      <div id="applyStatuses" class="apply-status-row" aria-live="polite">
+        <span class="apply-open-banner">
+          <span class="apply-open-dot" aria-hidden="true"></span>
+          <span>Volunteer Applications &mdash; OPEN</span>
+        </span>
+        <span class="apply-open-banner">
+          <span class="apply-open-dot" aria-hidden="true"></span>
+          <span>Security Applications &mdash; OPEN</span>
+        </span>
       </div>
       <div class="about-prose" style="margin-bottom:30px">
-        <p>Applications for the Veritas MUN Volunteer Department are now open. Submit your experience, supporting proof files, and department responses for Executive Board review.</p>
+        <p id="applyDescription">Applications for Veritas MUN departments are managed below. Select an open track to submit your experience and supporting proof.</p>
       </div>
-      <div class="hero-actions">
+      <div id="applyActions" class="hero-actions">
         <a class="btn-solid" href="/apply?track=volunteers">Apply as Volunteer</a>
         <a class="btn-outline" href="/apply?track=security">Apply as Security</a>
       </div>
@@ -2567,12 +2584,11 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
   // Desktop-only custom cursor ring + magnetic hero CTA button
   const cursorEl = $('#inkCursor');
   const interactiveSelector = 'a, button, [role="button"], .btn-solid, .replay-link, .printed-photo, .statue-btn';
-  const magnetButtons = $$('.btn-solid');
 
   if (finePointerQuery.matches && !reduceMotionQuery.matches) {
     document.addEventListener('pointermove', e => {
       if (e.pointerType === 'touch' || reduceMotionQuery.matches) return;
-      magnetButtons.forEach(btn => {
+      $$('.btn-solid').forEach(btn => {
         const rect = btn.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
         const cx = rect.left + rect.width / 2;
@@ -2593,7 +2609,7 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       });
     }, { passive: true });
     document.documentElement.addEventListener('mouseleave', () => {
-      magnetButtons.forEach(btn => {
+      $$('.btn-solid').forEach(btn => {
         btn.style.setProperty('--mx', '0px');
         btn.style.setProperty('--my', '0px');
       });
@@ -2897,18 +2913,18 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       tbaStages.forEach(el => el.classList.add('is-drawn'));
       return;
     }
-    const cutoff = window.innerHeight * 0.92;
+    const cutoff = window.innerHeight * 0.94;
     sectionHeads.forEach(el => {
       if (el.classList.contains('wiped')) return;
       const rect = el.getBoundingClientRect();
-      if (rect.height > 0 && rect.top < cutoff && rect.bottom > 0) {
+      if (rect.height > 0 && rect.top < cutoff) {
         el.classList.add('wiped');
       }
     });
     tbaStages.forEach(el => {
       if (el.classList.contains('is-drawn')) return;
       const rect = el.getBoundingClientRect();
-      if (rect.height > 0 && rect.top < window.innerHeight * 0.85 && rect.bottom > 0) {
+      if (rect.height > 0 && rect.top < window.innerHeight * 0.9) {
         el.classList.add('is-drawn');
       }
     });
@@ -3114,15 +3130,168 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     buildPhotoFrames();
   }
 
+  function renderCommitteesSection(committees, fallbackSecData) {
+    var inner = document.querySelector('#committees .band-inner');
+    if (!inner) return;
+    var head = inner.querySelector('.section-head');
+    inner.textContent = '';
+    if (head) inner.appendChild(head);
+
+    var enabled = Array.isArray(committees)
+      ? committees
+          .filter(function(item) { return item && item.enabled !== false && String(item.name || '').trim().length > 0; })
+          .sort(function(a, b) { return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0); })
+      : null;
+
+    if (enabled === null) {
+      renderDynamicTbaSection('committees', fallbackSecData);
+      return;
+    }
+
+    if (enabled.length === 0) {
+      var stage = document.createElement('div');
+      stage.className = 'tba-stage is-drawn';
+      var word = document.createElement('p');
+      word.className = 'tba-word';
+      word.textContent = 'TBA';
+      var rule = document.createElement('div');
+      rule.className = 'tba-rule';
+      rule.setAttribute('aria-hidden', 'true');
+      var sub = document.createElement('p');
+      sub.className = 'tba-sub';
+      sub.textContent = (fallbackSecData && fallbackSecData.tbaSubtitle) || 'To be announced.';
+      stage.appendChild(word);
+      stage.appendChild(rule);
+      stage.appendChild(sub);
+      inner.appendChild(stage);
+      return;
+    }
+
+    var list = document.createElement('div');
+    list.className = 'dynamic-list';
+    enabled.forEach(function(item) {
+      var entry = document.createElement('article');
+      entry.className = 'dynamic-entry committee-entry';
+
+      var safeLogo = safeHref(item.image_url);
+      if (safeLogo) {
+        var logo = document.createElement('img');
+        logo.className = 'committee-logo';
+        logo.src = safeLogo;
+        logo.alt = (item.name || 'Committee') + ' logo';
+        entry.appendChild(logo);
+      }
+
+      var copy = document.createElement('div');
+      copy.className = 'committee-copy';
+      var h3 = document.createElement('h3');
+      h3.className = 'dynamic-entry-title';
+      h3.textContent = item.name || '';
+      copy.appendChild(h3);
+
+      var descText = String(item.description || '').trim();
+      if (descText) {
+        var p = document.createElement('p');
+        p.className = 'dynamic-entry-body';
+        p.textContent = descText;
+        copy.appendChild(p);
+      }
+      entry.appendChild(copy);
+      list.appendChild(entry);
+    });
+    inner.appendChild(list);
+  }
+
+  function renderApplySection(appSettings) {
+    var applySection = document.getElementById('apply');
+    var navApplyLink = document.querySelector('#nav a[href="#apply"]');
+    if (!applySection || !appSettings || typeof appSettings !== 'object') return;
+
+    var tracks = [];
+    if (appSettings.volunteer && appSettings.volunteer.visible !== false) {
+      tracks.push({
+        key: 'volunteer',
+        title: 'Volunteer Applications',
+        href: '/apply?track=volunteers',
+        open: appSettings.volunteer.open !== false,
+        buttonText: String(appSettings.volunteer.button_text || '').trim() || 'Apply as Volunteer'
+      });
+    }
+    if (appSettings.security && appSettings.security.visible !== false) {
+      tracks.push({
+        key: 'security',
+        title: 'Security Applications',
+        href: '/apply?track=security',
+        open: appSettings.security.open !== false,
+        buttonText: String(appSettings.security.button_text || '').trim() || 'Apply as Security'
+      });
+    }
+
+    var noneVisible = tracks.length === 0;
+    applySection.hidden = noneVisible;
+    if (navApplyLink) navApplyLink.hidden = noneVisible;
+    if (noneVisible) return;
+
+    var statusesEl = document.getElementById('applyStatuses');
+    if (statusesEl) {
+      statusesEl.textContent = '';
+      tracks.forEach(function(tr) {
+        var pill = document.createElement('span');
+        pill.className = 'apply-open-banner' + (tr.open ? '' : ' is-closed');
+        var dot = document.createElement('span');
+        dot.className = 'apply-open-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        var label = document.createElement('span');
+        label.textContent = tr.title + ' — ' + (tr.open ? 'OPEN' : 'CLOSED');
+        pill.appendChild(dot);
+        pill.appendChild(label);
+        statusesEl.appendChild(pill);
+      });
+    }
+
+    var descEl = document.getElementById('applyDescription');
+    if (descEl && typeof appSettings.description === 'string' && appSettings.description.trim()) {
+      descEl.textContent = appSettings.description.trim();
+    }
+
+    var actionsEl = document.getElementById('applyActions');
+    if (actionsEl) {
+      actionsEl.textContent = '';
+      var openRenderedCount = 0;
+      tracks.forEach(function(tr) {
+        if (tr.open) {
+          var link = document.createElement('a');
+          link.className = openRenderedCount === 0 ? 'btn-solid' : 'btn-outline';
+          link.href = tr.href;
+          link.textContent = tr.buttonText;
+          actionsEl.appendChild(link);
+          openRenderedCount++;
+        } else {
+          var closedBtn = document.createElement('button');
+          closedBtn.type = 'button';
+          closedBtn.className = 'btn-closed';
+          closedBtn.disabled = true;
+          closedBtn.textContent = tr.buttonText + ' (CLOSED)';
+          actionsEl.appendChild(closedBtn);
+        }
+      });
+    }
+  }
+
   window.__veritasApplyPublicData = function(payload) {
     if (!payload) return;
     var content = payload.content;
     if (content) {
       renderHeroText(content.hero);
       renderAboutSection(content.about);
-      renderDynamicTbaSection('committees', content.committees, content.settings);
+      if (!Array.isArray(payload.committees)) {
+        renderDynamicTbaSection('committees', content.committees, content.settings);
+      }
       renderDynamicTbaSection('schedule', content.schedule, content.settings);
       renderDynamicTbaSection('faq', content.faq, content.settings);
+      if (content.application_settings) {
+        renderApplySection(content.application_settings);
+      }
       if (content.settings && content.settings.site_name) {
         document.title = content.settings.site_name;
         var navBrand = $('.nav-brand .brand');
@@ -3130,6 +3299,9 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
         var footerBrand = $('.footer-brand h2');
         if (footerBrand) footerBrand.textContent = content.settings.site_name;
       }
+    }
+    if (Array.isArray(payload.committees)) {
+      renderCommitteesSection(payload.committees, content ? content.committees : null);
     }
     if (payload.teamCards) {
       renderTeamCards(payload.teamCards);
