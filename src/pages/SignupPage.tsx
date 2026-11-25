@@ -11,6 +11,7 @@ import {
   resolveSignupErrorMessage,
   validateSignupInput
 } from '../utils/portalLogic';
+import { interpretEligibilityCheck } from '../utils/portalAuthLogic';
 
 const RATE_STORAGE_KEY = 'veritas_signup_attempts_v1';
 
@@ -94,6 +95,17 @@ export const SignupPage: React.FC = () => {
     setSubmitting(true);
     try {
       const cleanEmail = normalizeEmail(email);
+      try {
+        const rpcRes = await supabase.rpc('check_roster_signup_eligibility', { check_email: cleanEmail });
+        const eligibility = interpretEligibilityCheck(rpcRes.data, rpcRes.error);
+        if (eligibility.status === 'blocked') {
+          setErrorMsg(eligibility.message);
+          return;
+        }
+      } catch {
+        // Fallback to server trigger enforcement if RPC is not deployed yet
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  interpretEligibilityCheck,
   mapAuthErrorMessage,
   normalizeAuthPath,
   parseAuthUrlCallback,
@@ -162,9 +163,51 @@ test('resolvePortalGate handles errors, missing profiles, inactive accounts, and
       isRecovery: false,
       profileLoading: false,
       profileError: null,
+      profile: { role: 'advisor', active: true },
+      pathname: '/admin'
+    }),
+    'access_denied'
+  );
+  assert.equal(
+    resolvePortalGate({
+      sessionLoading: false,
+      hasSession: true,
+      isRecovery: false,
+      profileLoading: false,
+      profileError: null,
+      profile: { role: 'advisor', active: true },
+      pathname: '/account'
+    }),
+    'account'
+  );
+  assert.equal(
+    resolvePortalGate({
+      sessionLoading: false,
+      hasSession: true,
+      isRecovery: false,
+      profileLoading: false,
+      profileError: null,
       profile: { role: 'admin', active: true },
       pathname: '/account'
     }),
     'account'
   );
 });
+
+test('interpretEligibilityCheck handles authorized, inactive, unauthorized, and missing-RPC fallback', () => {
+  assert.equal(interpretEligibilityCheck({ eligible: true, reason: 'ok' }, null).status, 'eligible');
+  const blocked = interpretEligibilityCheck({ eligible: false, reason: 'not_found' }, null);
+  assert.equal(blocked.status, 'blocked');
+  assert.ok(blocked.message.includes('approved Veritas MUN roster'));
+
+  const inactive = interpretEligibilityCheck({ eligible: false, reason: 'inactive' }, null);
+  assert.equal(inactive.status, 'blocked');
+  assert.ok(inactive.message.includes('deactivated'));
+
+  const rpcMissing = interpretEligibilityCheck(null, { code: 'PGRST202', message: 'Could not find the function' });
+  assert.equal(rpcMissing.status, 'rpc_unavailable');
+
+  const inactiveSignupErr = mapAuthErrorMessage('up', { message: 'Your roster entry is currently inactive.' });
+  assert.ok(inactiveSignupErr.message.includes('deactivated'));
+});
+

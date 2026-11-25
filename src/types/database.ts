@@ -1,17 +1,19 @@
 import type { ApplicationSettings } from '../utils/committeesAndSettingsLogic';
 
-export type UserRole = 'member' | 'head' | 'admin';
+export type UserRole = 'member' | 'head' | 'advisor' | 'admin';
 
 export type AnnouncementAudience = 'all' | 'department' | 'heads';
 
 export interface RosterRow {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
   phone: string;
   department: string;
   position: string;
   notes: string;
+  active?: boolean;
+  account_role?: UserRole;
   created_at: string;
 }
 

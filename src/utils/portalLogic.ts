@@ -160,7 +160,10 @@ export function checkRateLimit(
 export function resolveSignupErrorMessage(rawMessage: string): string {
   const msg = rawMessage || '';
   const lower = msg.toLowerCase();
-  if (lower.includes("isn't on the team list") || lower.includes('isnt on the team list') || lower.includes('not on the team list')) {
+  if (lower.includes('inactive') || lower.includes('deactivated')) {
+    return 'Your roster entry is currently deactivated. Contact an admin.';
+  }
+  if (lower.includes("isn't on the team list") || lower.includes('isnt on the team list') || lower.includes('not on the team list') || lower.includes('database error')) {
     return "This email isn't on the team list. Contact an admin.";
   }
   if (lower.includes('already registered') || lower.includes('user already exists')) {
@@ -245,7 +248,11 @@ export function parseAndValidateRosterCsv(
     };
   }
 
-  const existingSet = new Set(existingRosterEmails.map(normalizeEmail));
+  const existingSet = new Set(
+    existingRosterEmails
+      .filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
+      .map(normalizeEmail)
+  );
   const seenCsvEmails = new Set<string>();
   const rows: CsvImportValidationRow[] = [];
 
@@ -304,7 +311,7 @@ export function exportRosterToCsv(rows: RosterRow[]): string {
   const body = rows.map(r =>
     [
       escapeCsvCell(r.full_name),
-      escapeCsvCell(r.email),
+      escapeCsvCell(r.email ?? ''),
       escapeCsvCell(r.phone),
       escapeCsvCell(r.department),
       escapeCsvCell(r.position),

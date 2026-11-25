@@ -18,6 +18,7 @@ import {
   type SecurityProofMeta
 } from '../utils/securityApplicationLogic';
 import {
+  interpretEligibilityCheck,
   mapAuthErrorMessage,
   MIN_AUTH_PASSWORD_LENGTH,
   normalizeAuthPath,
@@ -28,6 +29,18 @@ import {
   validateAuthSubmission,
   type AuthMode
 } from '../utils/portalAuthLogic';
+import {
+  OFFICIAL_PDF_ROSTER,
+  PDF_DEPARTMENTS,
+  findLinkedProfileForRoster,
+  getRosterRegistrationStatus,
+  isRosterEntryActive,
+  isValidNullableEmail,
+  normalizeNullableEmail,
+  planPdfRosterSync,
+  resolveRosterAccountRole,
+  type RosterAccountRole
+} from '../utils/pdfRosterData';
 import {
   buildVolunteerProofStoragePath,
   countVolunteerWords,
@@ -73,7 +86,7 @@ input,textarea,select{font:inherit;padding:7px 9px;border:1px solid #BAB1A0;back
 textarea{width:100%;min-height:90px}.btn{background:#1A1217;color:#EDE6D6;border:1px solid #1A1217;padding:9px 18px;font:inherit;cursor:pointer;border-radius:2px;text-decoration:none;display:inline-block}.btn:hover{background:#30262B;border-color:#30262B}.btn.red{background:#8a2b2b}.btn.ghost{background:none;color:#1A1217;border:1px solid #BAB1A0}.btn.ghost:hover{background:#E5DDCF;border-color:#80766F}.btn:disabled{opacity:.5}
 .tw{overflow-x:auto;margin:14px 0}table{border-collapse:collapse;width:100%;font-size:16px}td,th{border-bottom:1px solid #BAB1A0;padding:6px;text-align:left;vertical-align:top}th{font-family:Cinzel,serif;font-size:.8rem}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.card{background:#F7F2E6;padding:18px;border:1px solid #BAB1A0;border-left:3px solid #2F6B34}.card b{font-size:2.2rem;display:block}
-.box{max-width:440px;margin:8vh auto;padding:30px;background:#F7F2E6;border:1px solid #BAB1A0;box-shadow:3px 5px 0 #BAB1A055}.box input,.box select,.box textarea{width:100%;margin:8px 0}.msg{margin:10px 0;color:#2F6B34}.box .err{margin:10px 0;color:#8a2b2b;font-weight:600}
+.box{max-width:440px;margin:8vh auto;padding:30px;background:#F7F2E6;border:1px solid #BAB1A0;box-shadow:3px 5px 0 #BAB1A055}.box input,.box select,.box textarea{width:100%;margin:8px 0}.box a{color:#2F6B34;text-decoration:none;border-bottom:1px solid #2F6B3466;font-weight:600}.box a:hover{color:#1F4A25;border-bottom-color:#1F4A25}.msg{margin:10px 0;color:#2F6B34}.box .note{margin:10px 0;color:#51464A}.box .err{margin:10px 0;color:#8a2b2b;font-weight:600}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
 .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.8rem;background:#1A121722;margin-left:6px;font-family:Cormorant Garamond,serif}.badge.g{background:#2F6B3433;color:#1F4A25}.badge.r{background:#8a2b2b33;color:#6b1f1f}
 .tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{background:none;border:1px solid #BAB1A0;padding:6px 14px;font:inherit;cursor:pointer;color:#1A1217}.tabs button.on{background:#1A1217;color:#EDE6D6}
@@ -302,7 +315,9 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
   const [pw2,setPw2]=useState('');
   const [msg,setMsg]=useState(initialMessage||'');
   const [isErr,setIsErr]=useState(Boolean(initialIsError));
+  const [isNote,setIsNote]=useState(false);
   const [resendEmail,setResendEmail]=useState('');
+  const [verifiedRosterEmail,setVerifiedRosterEmail]=useState('');
   const [busy,setBusy]=useState(false);
 
   useEffect(()=>{
@@ -323,11 +338,59 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
     setMode(next);
     setMsg('');
     setIsErr(false);
+    setIsNote(false);
     setResendEmail('');
+    setVerifiedRosterEmail('');
     const norm=normalizeAuthPath(location.pathname);
     if(norm==='/login'||norm==='/signup'){
       const target=next==='up'?'/signup':'/login';
       if(norm!==target)window.history.replaceState(null,'',target);
+    }
+  };
+
+  const checkRosterEligibility=async(targetEmail:string):Promise<'eligible'|'blocked'|'rpc_unavailable'>=>{
+    const clean=targetEmail.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean)){
+      setIsErr(true);
+      setIsNote(false);
+      setMsg('Enter a valid email address.');
+      return 'blocked';
+    }
+    try{
+      const {data,error}=await sb.rpc('check_roster_signup_eligibility',{check_email:clean});
+      const outcome=interpretEligibilityCheck(data,error);
+      if(outcome.status==='blocked'){
+        setVerifiedRosterEmail('');
+        setIsErr(true);
+        setIsNote(false);
+        setMsg(outcome.message);
+        return 'blocked';
+      }
+      if(outcome.status==='eligible'){
+        setVerifiedRosterEmail(clean);
+        setIsErr(false);
+        setIsNote(false);
+        setMsg(outcome.message);
+        return 'eligible';
+      }
+      return 'rpc_unavailable';
+    }catch{
+      return 'rpc_unavailable';
+    }
+  };
+
+  const verifyEmailOnly=async()=>{
+    setBusy(true);
+    setResendEmail('');
+    try{
+      const status=await checkRosterEligibility(email);
+      if(status==='rpc_unavailable'){
+        setIsErr(false);
+        setIsNote(true);
+        setMsg('Enter your password above and click Create account to verify your roster email.');
+      }
+    }finally{
+      setBusy(false);
     }
   };
 
@@ -355,6 +418,7 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
     e.preventDefault();
     setMsg('');
     setIsErr(false);
+    setIsNote(false);
     setResendEmail('');
     const em=email.trim().toLowerCase();
     const validationErr=validateAuthSubmission(mode,em,pw,pw2);
@@ -375,6 +439,10 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
           if(mapped.showResend)setResendEmail(em);
         }
       }else if(mode==='up'){
+        const eligibility=await checkRosterEligibility(em);
+        if(eligibility==='blocked'){
+          return;
+        }
         const result=await sb.auth.signUp({
           email:em,
           password:pw,
@@ -413,15 +481,17 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
 
   const t:Record<AuthMode,string>={in:'Sign in',up:'Create account',forgot:'Reset password',reset:'Choose a new password'};
   return <form className="box" onSubmit={go}><h2 style={{margin:0}}>Veritas MUN</h2><h3>{t[mode]}</h3>
-    {mode==='up'&&<p>Use the email you gave on the team form. Choose a password (at least {MIN_AUTH_PASSWORD_LENGTH} characters) and confirm your email before signing in.</p>}
-    {mode!=='reset'&&<input type="email" required placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} aria-label="Email" autoComplete="email"/>}
+    {mode==='up'&&<p>Enter your registered Veritas MUN roster email, then choose your own password (at least {MIN_AUTH_PASSWORD_LENGTH} characters) to create your account.</p>}
+    {mode!=='reset'&&<input type="email" required placeholder="Email" value={email} onChange={e=>{setEmail(e.target.value);if(verifiedRosterEmail&&e.target.value.trim().toLowerCase()!==verifiedRosterEmail)setVerifiedRosterEmail('')}} aria-label="Email" autoComplete="email"/>}
+    {mode==='up'&&verifiedRosterEmail&&<div className="badge g" style={{margin:'2px 0 8px',marginLeft:0}}>Approved roster email verified</div>}
     {mode!=='forgot'&&<input type="password" required minLength={mode==='up'||mode==='reset'?MIN_AUTH_PASSWORD_LENGTH:undefined} placeholder={mode==='in'?'Password':'New password'} value={pw} onChange={e=>setPw(e.target.value)} aria-label="Password" autoComplete={mode==='in'?'current-password':'new-password'}/>}
     {(mode==='up'||mode==='reset')&&<input type="password" required minLength={MIN_AUTH_PASSWORD_LENGTH} placeholder="Repeat password" value={pw2} onChange={e=>setPw2(e.target.value)} aria-label="Repeat password" autoComplete="new-password"/>}
     <div className="toolbar" style={{margin:'10px 0 0'}}>
       <button className="btn" disabled={busy}>{busy?'Please wait...':t[mode]}</button>
+      {mode==='up'&&<button type="button" className="btn ghost" disabled={busy||!email.trim()} onClick={verifyEmailOnly}>Check email</button>}
       {resendEmail&&<button type="button" className="btn ghost" disabled={busy} onClick={resendConfirmation}>Resend confirmation email</button>}
     </div>
-    <div className={isErr?'err':'msg'} role={isErr?'alert':'status'}>{msg}</div>
+    <div className={isErr?'err':isNote?'note':'msg'} role={isErr?'alert':'status'}>{msg}</div>
     {mode!=='reset'&&<div className="toolbar">{mode!=='in'&&<a href="/login" onClick={e=>{e.preventDefault();switchMode('in')}}>Sign in</a>}{mode!=='up'&&<a href="/signup" onClick={e=>{e.preventDefault();switchMode('up')}}>Create account</a>}{mode==='in'&&<a href="#" onClick={e=>{e.preventDefault();switchMode('forgot')}}>Forgot password?</a>}</div>}</form>;
 }
 
@@ -1407,7 +1477,7 @@ function Applications({me}:any){
       </div>
       <div className="admin-toolbar-actions"><button className="btn ghost" onClick={load}>Refresh</button>{err&&<span className="err" role="alert">{err}</span>}</div>
     </div>
-    {shown.length?shown.map(a=><AppCard key={a.id+a.status+String(a.recommendation)} a={a} me={me} reload={load}/>):<div className="admin-empty-state"><FileText size={25} strokeWidth={1.6}/><strong>{err?'Applications could not be loaded':'No applications found'}</strong><p>{err?'Check the database connection and access permissions, then refresh.':'Applications that match your current filters will appear here.'}</p></div>}
+    {shown.length?shown.map(a=><AppCard key={a.id+a.status+String(a.recommendation)} a={a} me={me} reload={load}/>):<div className="admin-empty-state"><FileText size={25} strokeWidth={1.6}/><strong>{err?'Applications could not be loaded':'No applications found'}</strong><p>{err?'Check the database connection and access permissions, then refresh.':me.role==='head'&&!headTrack?`No application intake track is open for ${me.department||'your department'} yet.`:'Applications that match your current filters will appear here.'}</p></div>}
   </div>;
 }
 function Crud({table,cols,order='created_at',log,pre}:any){
@@ -1429,34 +1499,448 @@ function Crud({table,cols,order='created_at',log,pre}:any){
     </tbody></table></div></div>;
 }
 
+interface RosterDraft{
+  id:string|null;
+  full_name:string;
+  email:string;
+  phone:string;
+  department:string;
+  position:string;
+  account_role:RosterAccountRole;
+  active:boolean;
+  notes:string;
+}
+
+const EMPTY_ROSTER_DRAFT:RosterDraft={
+  id:null,
+  full_name:'',
+  email:'',
+  phone:'',
+  department:'',
+  position:'Member',
+  account_role:'member',
+  active:true,
+  notes:''
+};
+
 function Roster({log}:any){
-  const [tick,setTick]=useState(0);const [msg,setMsg]=useState('');
-  const importCsv=async(f:File)=>{const rows=parseCSV(await f.text());const head=rows[0].map(h=>h.trim().toLowerCase());const ix=(n:string)=>head.indexOf(n);
-    if(ix('email')<0||ix('full_name')<0){setMsg('CSV needs columns: full_name, email, phone, department, position');return}
+  const [rows,setRows]=useState<any[]>([]);
+  const [profiles,setProfiles]=useState<any[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [q,setQ]=useState('');
+  const [deptFilter,setDeptFilter]=useState('ALL');
+  const [regFilter,setRegFilter]=useState<'all'|'registered'|'pending'|'incomplete'>('all');
+  const [activeFilter,setActiveFilter]=useState<'all'|'active'|'inactive'>('all');
+  const [msg,setMsg]=useState('');
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [editing,setEditing]=useState<RosterDraft|null>(null);
+
+  const load=useCallback(async()=>{
+    setLoading(true);
+    const [rRes,pRes]=await Promise.all([
+      sb.from('roster').select('*').order('full_name',{ascending:true}),
+      sb.from('profiles').select('id,roster_id,email,role,active,full_name,department,position')
+    ]);
+    if(rRes.error)setErr(rRes.error.message||'Could not load roster.');
+    else setErr('');
+    setRows(rRes.data||[]);
+    setProfiles(pRes.data||[]);
+    setLoading(false);
+  },[]);
+
+  useEffect(()=>{void load()},[load]);
+
+  const departments=useMemo(()=>{
+    const set=new Set<string>(PDF_DEPARTMENTS);
+    for(const r of rows){
+      if(typeof r.department==='string'&&r.department.trim())set.add(r.department.trim());
+    }
+    return Array.from(set).sort((a,b)=>a.localeCompare(b));
+  },[rows]);
+
+  const stats=useMemo(()=>{
+    let registered=0,pending=0,incomplete=0,inactive=0;
+    for(const r of rows){
+      if(!isRosterEntryActive(r))inactive++;
+      const status=getRosterRegistrationStatus(r,profiles);
+      if(status==='registered')registered++;
+      else if(status==='incomplete')incomplete++;
+      else pending++;
+    }
+    return {total:rows.length,registered,pending,incomplete,inactive};
+  },[rows,profiles]);
+
+  const shown=useMemo(()=>{
+    const needle=q.trim().toLowerCase();
+    return rows.filter(r=>{
+      if(deptFilter!=='ALL'&&(r.department||'').trim()!==deptFilter)return false;
+      const regStatus=getRosterRegistrationStatus(r,profiles);
+      if(regFilter!=='all'&&regStatus!==regFilter)return false;
+      const activeFlag=isRosterEntryActive(r);
+      if(activeFilter==='active'&&!activeFlag)return false;
+      if(activeFilter==='inactive'&&activeFlag)return false;
+      if(!needle)return true;
+      return [r.full_name,r.email,r.phone,r.department,r.position,r.account_role]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(needle);
+    });
+  },[rows,profiles,deptFilter,regFilter,activeFilter,q]);
+
+  const openAdd=()=>{
+    setErr('');
+    setMsg('');
+    setEditing({...EMPTY_ROSTER_DRAFT});
+  };
+
+  const openEdit=(row:any)=>{
+    setErr('');
+    setMsg('');
+    const resolvedRole=resolveRosterAccountRole(row.department,row.position,row.account_role);
+    setEditing({
+      id:row.id,
+      full_name:row.full_name||'',
+      email:row.email||'',
+      phone:row.phone||'',
+      department:row.department||'',
+      position:row.position||'Member',
+      account_role:resolvedRole,
+      active:isRosterEntryActive(row),
+      notes:row.notes||''
+    });
+  };
+
+  const saveDraft=async(e:any)=>{
+    e.preventDefault();
+    if(!editing)return;
+    const cleanName=editing.full_name.trim();
+    const cleanEmail=normalizeNullableEmail(editing.email);
+    if(!cleanName){
+      setErr('Full name is required.');
+      return;
+    }
+    if(!isValidNullableEmail(cleanEmail)){
+      setErr('Enter a valid email address, or leave blank only for an incomplete roster entry.');
+      return;
+    }
+
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try{
+      const payload:any={
+        full_name:cleanName,
+        email:cleanEmail,
+        phone:editing.phone.trim(),
+        department:editing.department.trim(),
+        position:editing.position.trim()||'Member',
+        account_role:editing.account_role,
+        active:editing.active,
+        notes:editing.notes.trim()
+      };
+
+      if(editing.id){
+        let {error}=await sb.from('roster').update(payload).eq('id',editing.id);
+        if(error&&/column.*does not exist|null value in column "email"/i.test(error.message||'')){
+          const legacyPayload:any={
+            full_name:cleanName,
+            phone:payload.phone,
+            department:payload.department,
+            position:payload.position,
+            notes:payload.notes
+          };
+          if(cleanEmail)legacyPayload.email=cleanEmail;
+          const retry=await sb.from('roster').update(legacyPayload).eq('id',editing.id);
+          error=retry.error;
+        }
+        if(error){
+          setErr(error.message||'Could not update roster entry.');
+          return;
+        }
+        log('roster.update',{id:editing.id,full_name:cleanName,email:cleanEmail,active:editing.active});
+        setMsg(`Updated ${cleanName}.`);
+      }else{
+        let {error}=await sb.from('roster').insert(payload);
+        if(error&&/column.*does not exist/i.test(error.message||'')){
+          if(!cleanEmail){
+            setErr('Adding an entry without an email requires applying migration 006_full_pdf_roster_import.sql in Supabase first.');
+            return;
+          }
+          const retry=await sb.from('roster').insert({
+            full_name:cleanName,
+            email:cleanEmail,
+            phone:payload.phone,
+            department:payload.department,
+            position:payload.position,
+            notes:payload.notes
+          });
+          error=retry.error;
+        }
+        if(error){
+          setErr(error.message||'Could not add roster entry.');
+          return;
+        }
+        log('roster.create',{full_name:cleanName,email:cleanEmail});
+        setMsg(`Added ${cleanName} to the roster.`);
+      }
+
+      setEditing(null);
+      await load();
+    }finally{
+      setBusy(false);
+    }
+  };
+
+  const toggleRosterActive=async(row:any)=>{
+    const current=isRosterEntryActive(row);
+    const next=!current;
+    if(!next&&!confirm(`Deactivate ${row.full_name} on the roster? Inactive entries cannot sign up for new accounts.`))return;
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try{
+      const {error}=await sb.from('roster').update({active:next}).eq('id',row.id);
+      if(error){
+        if(/column.*active.*does not exist/i.test(error.message||'')){
+          setErr('Roster active/inactive status requires running migration 006_full_pdf_roster_import.sql in Supabase SQL Editor.');
+        }else{
+          setErr(error.message||'Could not change active status.');
+        }
+        return;
+      }
+      log(next?'roster.reactivate':'roster.deactivate',{id:row.id,full_name:row.full_name,email:row.email});
+      setMsg(`${row.full_name} marked ${next?'active':'inactive'}.`);
+      await load();
+    }finally{
+      setBusy(false);
+    }
+  };
+
+  const syncPdfRoster=async()=>{
+    setErr('');
+    setMsg('');
+    const plan=planPdfRosterSync(rows,OFFICIAL_PDF_ROSTER);
+    const missingTotal=plan.toInsertWithEmail.length+plan.toInsertMissingEmail.length;
+    if(missingTotal===0){
+      setMsg(`All ${OFFICIAL_PDF_ROSTER.length} official PDF roster entries are already present (${plan.alreadyPresentCount} matched).`);
+      return;
+    }
+    if(!confirm(`Sync missing entries from the official PDF roster?\n\n• New valid-email entries to add: ${plan.toInsertWithEmail.length}\n• Incomplete entries (missing email in PDF) to add: ${plan.toInsertMissingEmail.length}\n• Already in roster (kept untouched): ${plan.alreadyPresentCount}`))return;
+
+    setBusy(true);
+    try{
+      let inserted=0;
+      let skippedIncomplete=0;
+      if(plan.toInsertWithEmail.length>0){
+        const payload=plan.toInsertWithEmail.map(e=>({
+          full_name:e.full_name,
+          email:e.email,
+          phone:e.phone,
+          department:e.department,
+          position:e.position,
+          account_role:e.intended_role,
+          active:true,
+          notes:`Imported from official EB roster PDF (Page ${e.page})`
+        }));
+        let {error}=await sb.from('roster').insert(payload);
+        if(error&&/column.*does not exist/i.test(error.message||'')){
+          const retry=await sb.from('roster').insert(plan.toInsertWithEmail.map(e=>({
+            full_name:e.full_name,
+            email:e.email,
+            phone:e.phone,
+            department:e.department,
+            position:e.position,
+            notes:`Imported from official EB roster PDF (Page ${e.page})`
+          })));
+          error=retry.error;
+        }
+        if(error){
+          setErr(error.message||'Could not import PDF valid-email entries.');
+          return;
+        }
+        inserted+=plan.toInsertWithEmail.length;
+      }
+
+      if(plan.toInsertMissingEmail.length>0){
+        const incompletePayload=plan.toInsertMissingEmail.map(e=>({
+          full_name:e.full_name,
+          email:null,
+          phone:e.phone,
+          department:e.department,
+          position:e.position,
+          account_role:e.intended_role,
+          active:true,
+          notes:`Incomplete entry from PDF (Page ${e.page}): missing email address`
+        }));
+        const {error}=await sb.from('roster').insert(incompletePayload);
+        if(error){
+          skippedIncomplete=plan.toInsertMissingEmail.length;
+        }else{
+          inserted+=plan.toInsertMissingEmail.length;
+        }
+      }
+
+      log('roster.pdf_sync',{inserted,skippedIncomplete,alreadyPresent:plan.alreadyPresentCount});
+      setMsg(
+        skippedIncomplete>0
+          ? `Added ${inserted} valid-email entries. ${skippedIncomplete} missing-email entries require migration 006_full_pdf_roster_import.sql in Supabase SQL Editor.`
+          : `Synced ${inserted} official PDF roster entries (${plan.alreadyPresentCount} already present were preserved).`
+      );
+      await load();
+    }finally{
+      setBusy(false);
+    }
+  };
+
+  const importCsv=async(f:File)=>{
+    const parsed=parseCSV(await f.text());
+    const head=parsed[0]?.map(h=>h.trim().toLowerCase())||[];
+    const ix=(n:string)=>head.indexOf(n);
+    if(ix('email')<0||ix('full_name')<0){setErr('CSV needs columns: full_name, email, phone, department, position');return}
     const seen=new Set<string>();const bad:string[]=[];const out:any[]=[];
-    rows.slice(1).forEach((r,i)=>{const email=(r[ix('email')]||'').trim().toLowerCase();const name=(r[ix('full_name')]||'').trim();
-      if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){bad.push('row '+(i+2));return}if(seen.has(email)){bad.push('duplicate row '+(i+2));return}seen.add(email);
-      out.push({full_name:name,email,phone:ix('phone')>=0?(r[ix('phone')]||'').trim():'',department:ix('department')>=0?(r[ix('department')]||'').trim():'',position:ix('position')>=0?((r[ix('position')]||'').trim()||'Member'):'Member'})});
-    if(!out.length){setMsg('Nothing valid to import. Skipped: '+bad.join(', '));return}
+    parsed.slice(1).forEach((r,i)=>{
+      const em=(r[ix('email')]||'').trim().toLowerCase();
+      const name=(r[ix('full_name')]||'').trim();
+      if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){bad.push('row '+(i+2));return}
+      if(seen.has(em)){bad.push('duplicate row '+(i+2));return}
+      seen.add(em);
+      const dept=ix('department')>=0?(r[ix('department')]||'').trim():'';
+      const pos=ix('position')>=0?((r[ix('position')]||'').trim()||'Member'):'Member';
+      out.push({full_name:name,email:em,phone:ix('phone')>=0?(r[ix('phone')]||'').trim():'',department:dept,position:pos,account_role:resolveRosterAccountRole(dept,pos),active:true});
+    });
+    if(!out.length){setErr('Nothing valid to import. Skipped: '+bad.join(', '));return}
     if(!confirm(`Import ${out.length} people? ${bad.length} rows will be skipped (missing or invalid email, or duplicates).`))return;
-    const {error}=await sb.from('roster').upsert(out,{onConflict:'email'});setMsg(error?error.message:`Imported ${out.length}. Skipped: ${bad.join(', ')||'none'}`);
-    if(!error){log('import roster',{count:out.length,skipped:bad.length});setTick(tick+1)}};
-  const exportCsv=async()=>{const {data}=await sb.from('roster').select('full_name,email,phone,department,position');const h=['full_name','email','phone','department','position'];
-    const csv=[h.join(',')].concat((data||[]).map((r:any)=>h.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(','))).join('\n');
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='roster.csv';a.click();log('export roster')};
-  return <div><h2>Roster</h2><p>Only emails on this list can create an account. Roles are set automatically: department <b style={{fontSize:'1rem',display:'inline'}}>Secretaries</b> or <b style={{fontSize:'1rem',display:'inline'}}>IT</b> gets the admin panel; anyone with "head" in their position (for example "Head" or "Co-head") can review applications for their own department (Volunteers or Security). Staff accounts start inactive: tick Active in Accounts to approve them.</p>
-    <div className="toolbar"><label className="btn ghost">Import CSV<input type="file" accept=".csv" hidden onChange={e=>e.target.files?.[0]&&importCsv(e.target.files[0])}/></label><button className="btn ghost" onClick={exportCsv}>Export CSV</button><span className="msg">{msg}</span></div>
-    <Crud key={tick} table="roster" order="full_name" log={log} cols={[{k:'full_name',l:'Name'},{k:'email',l:'Email'},{k:'phone',l:'Phone'},{k:'department',l:'Department'},{k:'position',l:'Position'}]}/></div>;
+    let {error}=await sb.from('roster').upsert(out,{onConflict:'email'});
+    if(error&&/column.*does not exist/i.test(error.message||'')){
+      const retry=await sb.from('roster').upsert(out.map(({full_name,email:em,phone,department,position})=>({full_name,email:em,phone,department,position})),{onConflict:'email'});
+      error=retry.error;
+    }
+    if(error){setErr(error.message);return}
+    setMsg(`Imported ${out.length}. Skipped: ${bad.join(', ')||'none'}`);
+    log('import roster',{count:out.length,skipped:bad.length});
+    await load();
+  };
+
+  const exportCsv=()=>{
+    const h=['full_name','email','phone','department','position','account_role','active'];
+    const csv=[h.join(',')].concat(shown.map((r:any)=>h.map(k=>'"'+String(r[k]??(k==='active'?isRosterEntryActive(r):'')).replace(/"/g,'""')+'"').join(','))).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='veritas-roster.csv';a.click();log('export roster');
+  };
+
+  return <div style={{display:'flex',flexDirection:'column',gap:16}}>
+    <div className="admin-stat-grid">
+      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Total Roster</span><Users className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.total}</strong></div>
+      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Registered Accounts</span><UserRound className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.registered}</strong></div>
+      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Pending Sign-Up</span><ClipboardList className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.pending}</strong></div>
+      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Missing Email / Inactive</span><History className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.incomplete} / {stats.inactive}</strong></div>
+    </div>
+
+    <div className="admin-filter-panel">
+      <div className="admin-filter-heading"><span className="admin-kicker">ROSTER DIRECTORY &amp; CONTROLS</span><span className="admin-filter-count">Showing {shown.length} of {rows.length}</span></div>
+      <div className="admin-filter-grid admin-filter-grid-wide" style={{gridTemplateColumns:'minmax(210px,1.4fr) repeat(3,minmax(135px,1fr))'}}>
+        <input type="search" placeholder="Search name, email, department, position..." value={q} onChange={e=>setQ(e.target.value)} aria-label="Search roster"/>
+        <select value={deptFilter} onChange={e=>setDeptFilter(e.target.value)} aria-label="Filter by department">
+          <option value="ALL">All departments</option>
+          {departments.map(d=><option key={d} value={d}>{d}</option>)}
+        </select>
+        <select value={regFilter} onChange={e=>setRegFilter(e.target.value as any)} aria-label="Filter by registration status">
+          <option value="all">All registration statuses</option>
+          <option value="registered">Registered</option>
+          <option value="pending">Pending sign-up</option>
+          <option value="incomplete">Missing email</option>
+        </select>
+        <select value={activeFilter} onChange={e=>setActiveFilter(e.target.value as any)} aria-label="Filter by active status">
+          <option value="all">All active statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div className="admin-toolbar-actions">
+        <button type="button" className="btn" onClick={openAdd} disabled={busy}>+ Add person</button>
+        <button type="button" className="btn ghost" onClick={syncPdfRoster} disabled={busy}>Sync PDF Roster</button>
+        <label className="btn ghost" style={{cursor:'pointer'}}>Import CSV<input type="file" accept=".csv" hidden onChange={e=>e.target.files?.[0]&&importCsv(e.target.files[0])}/></label>
+        <button type="button" className="btn ghost" onClick={exportCsv} disabled={!shown.length}>Export CSV</button>
+        <button type="button" className="btn ghost" onClick={()=>void load()} disabled={loading}>Refresh</button>
+      </div>
+      {msg&&<div className="msg" role="status" style={{marginTop:10,fontWeight:600}}>{msg}</div>}
+      {err&&<div className="err" role="alert" style={{marginTop:10,padding:'8px 12px'}}>{err}</div>}
+    </div>
+
+    {editing&&<form className="admin-panel" onSubmit={saveDraft} aria-label={editing.id?'Edit roster entry':'Add roster entry'}>
+      <p className="admin-kicker">{editing.id?'EDIT ROSTER ENTRY':'ADD TEAM MEMBER TO ROSTER'}</p>
+      <div className="f-grid" style={{marginTop:10}}>
+        <div className="field"><label htmlFor="r-edit-name">Full Name<span className="req">*</span></label><input id="r-edit-name" required value={editing.full_name} onChange={e=>setEditing({...editing,full_name:e.target.value})}/></div>
+        <div className="field"><label htmlFor="r-edit-email">Email (leave blank only if unknown)</label><input id="r-edit-email" type="email" placeholder="name@example.com" value={editing.email} onChange={e=>setEditing({...editing,email:e.target.value})}/></div>
+        <div className="field"><label htmlFor="r-edit-dept">Department</label><input id="r-edit-dept" list="veritas-dept-list" value={editing.department} onChange={e=>{const d=e.target.value;setEditing({...editing,department:d,account_role:resolveRosterAccountRole(d,editing.position)})}}/>
+          <datalist id="veritas-dept-list">{PDF_DEPARTMENTS.map(d=><option key={d} value={d}/>)}</datalist>
+        </div>
+        <div className="field"><label htmlFor="r-edit-pos">Position</label><input id="r-edit-pos" value={editing.position} onChange={e=>{const p=e.target.value;setEditing({...editing,position:p,account_role:resolveRosterAccountRole(editing.department,p)})}}/></div>
+        <div className="field"><label htmlFor="r-edit-phone">Phone</label><input id="r-edit-phone" value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})}/></div>
+        <div className="field"><label htmlFor="r-edit-role">Account Role</label>
+          <select id="r-edit-role" value={editing.account_role} onChange={e=>setEditing({...editing,account_role:e.target.value as RosterAccountRole})}>
+            <option value="member">Member</option>
+            <option value="head">Department Head / Co-head</option>
+            <option value="advisor">Senior Advisor (no admin)</option>
+            <option value="admin">Admin (Secretariat / IT)</option>
+          </select>
+        </div>
+      </div>
+      <div className="field"><label htmlFor="r-edit-notes">Notes</label><input id="r-edit-notes" value={editing.notes} onChange={e=>setEditing({...editing,notes:e.target.value})}/></div>
+      <label style={{display:'inline-flex',alignItems:'center',gap:8,fontWeight:600}}><input type="checkbox" checked={editing.active} onChange={e=>setEditing({...editing,active:e.target.checked})}/><span>Active on approved roster (can sign up)</span></label>
+      <div className="toolbar" style={{marginTop:14}}>
+        <button type="submit" className="btn" disabled={busy}>{busy?'Saving...':'Save entry'}</button>
+        <button type="button" className="btn ghost" onClick={()=>setEditing(null)} disabled={busy}>Cancel</button>
+      </div>
+    </form>}
+
+    <div className="tw">
+      {loading?<p style={{padding:18}}>Loading roster...</p>:shown.length===0?<div className="admin-empty-state" style={{border:0}}><Users size={22}/><strong>No roster entries match your filters</strong><p>Adjust your search or click Sync PDF Roster to load all 37 official members.</p></div>:<table>
+        <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Position</th><th>Account Registration</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+        <tbody>
+          {shown.map(r=>{
+            const regStatus=getRosterRegistrationStatus(r,profiles);
+            const activeFlag=isRosterEntryActive(r);
+            const linkedProfile=findLinkedProfileForRoster(r,profiles);
+            const effectiveRole=linkedProfile?.role||resolveRosterAccountRole(r.department,r.position,r.account_role);
+            return <tr key={r.id}>
+              <td><strong>{r.full_name}</strong>{r.phone?<div style={{fontSize:11,color:'#756B64'}}>{r.phone}</div>:null}</td>
+              <td>{r.email?<span>{r.email}</span>:<span className="badge" style={{marginLeft:0,background:'#F7ECD5',borderColor:'#B27B16',color:'#6E4506'}}>Missing email</span>}</td>
+              <td>{r.department||'—'}</td>
+              <td><div>{r.position||'Member'}</div><span className={effectiveRole==='admin'?'badge g':'badge'} style={{marginLeft:0,marginTop:3}}>{effectiveRole}</span></td>
+              <td>
+                {regStatus==='registered'
+                  ?<span className="badge g" style={{marginLeft:0}}>Registered</span>
+                  :regStatus==='incomplete'
+                    ?<span className="badge" style={{marginLeft:0,background:'#F7ECD5',borderColor:'#B27B16',color:'#6E4506'}}>Incomplete</span>
+                    :<span className="badge" style={{marginLeft:0}}>Pending</span>}
+              </td>
+              <td>
+                <span className={activeFlag?'badge g':'badge r'} style={{marginLeft:0}}>{activeFlag?'Active':'Inactive'}</span>
+              </td>
+              <td style={{textAlign:'right',whiteSpace:'nowrap'}}>
+                <div style={{display:'inline-flex',gap:6}}>
+                  <button type="button" className="btn ghost" style={{padding:'5px 10px',fontSize:12}} onClick={()=>openEdit(r)} disabled={busy}>Edit</button>
+                  <button type="button" className={activeFlag?'btn red':'btn ghost'} style={{padding:'5px 10px',fontSize:12}} onClick={()=>void toggleRosterActive(r)} disabled={busy}>{activeFlag?'Deactivate':'Reactivate'}</button>
+                </div>
+              </td>
+            </tr>;
+          })}
+        </tbody>
+      </table>}
+    </div>
+  </div>;
 }
 
 function Accounts({log}:any){
-  const [rows,setRows]=useState<any[]>([]);const [msg,setMsg]=useState('');
-  const load=useCallback(async()=>{const {data}=await sb.from('profiles').select('*').order('active').order('created_at');setRows(data||[])},[]);useEffect(()=>{load()},[load]);
-  const upd=async(id:string,patch:any)=>{const {error}=await sb.from('profiles').update(patch).eq('id',id);setMsg(error?error.message:'Saved');if(!error){log('update account',{id,...patch});load()}};
-  return <div><h2>Accounts</h2><p>People who have signed up. Inactive staff accounts are waiting for your approval: tick Active to let them in. You can also change roles here.</p><span className="msg">{msg}</span>
-    <div className="tw"><table><thead><tr><th>Name</th><th>Position</th><th>Department</th><th>Role</th><th>Active</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.full_name}</td><td>{r.position}</td><td>{r.department}</td>
-      <td><select value={r.role} onChange={e=>upd(r.id,{role:e.target.value})}><option>member</option><option>head</option><option>admin</option></select></td>
-      <td><input type="checkbox" checked={r.active} onChange={e=>upd(r.id,{active:e.target.checked})}/></td></tr>)}</tbody></table></div></div>;
+  const [rows,setRows]=useState<any[]>([]);const [msg,setMsg]=useState('');const [err,setErr]=useState('');
+  const load=useCallback(async()=>{const {data,error}=await sb.from('profiles').select('*').order('active').order('created_at');if(error)setErr(error.message);else setErr('');setRows(data||[])},[]);useEffect(()=>{load()},[load]);
+  const upd=async(id:string,patch:any)=>{const {error}=await sb.from('profiles').update(patch).eq('id',id);if(error){setErr(error.message);setMsg('')}else{setErr('');setMsg('Saved');log('update account',{id,...patch});load()}};
+  return <div><p>People who have signed up and activated accounts. Manage role assignments (Member, Head, Advisor, Admin) and portal access here.</p>{msg&&<span className="msg">{msg}</span>}{err&&<span className="err">{err}</span>}
+    <div className="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Department</th><th>Role</th><th>Active</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.full_name}</td><td>{r.email||'—'}</td><td>{r.position}</td><td>{r.department}</td>
+      <td><select value={r.role} onChange={e=>upd(r.id,{role:e.target.value})} aria-label={`Role for ${r.full_name}`}><option value="member">member</option><option value="head">head</option><option value="advisor">advisor</option><option value="admin">admin</option></select></td>
+      <td><input type="checkbox" checked={r.active} onChange={e=>upd(r.id,{active:e.target.checked})} aria-label={`Active for ${r.full_name}`}/></td></tr>)}</tbody></table></div></div>;
 }
 
 const DEFAULTS:any={hero_tagline:'Where diplomacy meets truth.',about_text:'',committees:{tba:true,items:[]},schedule:{tba:true,items:[]},faq:{tba:true,items:[]},register:{tba:true,link:''}};

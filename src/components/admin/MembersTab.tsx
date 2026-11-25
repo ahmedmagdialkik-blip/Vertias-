@@ -175,6 +175,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                       >
                         <option value="member">Member</option>
                         <option value="head">Head</option>
+                        <option value="advisor">Advisor</option>
                         <option value="admin">Admin</option>
                       </select>
                     </td>

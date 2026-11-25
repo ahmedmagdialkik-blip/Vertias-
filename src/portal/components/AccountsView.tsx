@@ -19,7 +19,7 @@ interface AccountsViewProps {
 interface PendingAccountAction {
   kind: 'role' | 'active';
   profile: PortalProfile;
-  nextRole?: 'member' | 'head' | 'admin';
+  nextRole?: 'member' | 'head' | 'advisor' | 'admin';
   nextActive?: boolean;
 }
 
@@ -184,7 +184,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                         value={profile.role}
                         disabled={busyId === profile.id}
                         onChange={e => {
-                          const nextRole = e.target.value as 'member' | 'head' | 'admin';
+                          const nextRole = e.target.value as 'member' | 'head' | 'advisor' | 'admin';
                           if (nextRole !== profile.role) {
                             setPendingAction({ kind: 'role', profile, nextRole });
                           }
@@ -193,6 +193,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                       >
                         <option value="member">Member</option>
                         <option value="head">Head</option>
+                        <option value="advisor">Advisor</option>
                         <option value="admin">Admin</option>
                       </select>
                     </td>

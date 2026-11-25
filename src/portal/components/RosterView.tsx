@@ -8,6 +8,12 @@ import {
   type CsvImportValidationRow
 } from '../../utils/portalLogic';
 import {
+  getRosterRegistrationStatus,
+  isRosterEntryActive,
+  normalizeNullableEmail,
+  resolveRosterAccountRole
+} from '../../utils/pdfRosterData';
+import {
   recordPortalAuditLog,
   sb,
   type PortalProfile,
@@ -34,6 +40,7 @@ interface RosterFormState {
   phone: string;
   department: string;
   position: string;
+  active: boolean;
   notes: string;
 }
 
@@ -44,6 +51,7 @@ const EMPTY_FORM: RosterFormState = {
   phone: '',
   department: '',
   position: 'Member',
+  active: true,
   notes: ''
 };
 
@@ -124,10 +132,11 @@ export const RosterView: React.FC<RosterViewProps> = ({
     setForm({
       id: row.id,
       full_name: row.full_name,
-      email: row.email,
+      email: row.email || '',
       phone: row.phone || '',
       department: row.department || '',
       position: row.position || 'Member',
+      active: isRosterEntryActive(row),
       notes: row.notes || ''
     });
     setFormOpen(true);
@@ -136,12 +145,12 @@ export const RosterView: React.FC<RosterViewProps> = ({
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = form.full_name.trim();
-    const cleanEmail = normalizeEmail(form.email);
+    const cleanEmail = normalizeNullableEmail(form.email);
     if (!cleanName) {
       onToast('error', 'Full name is required.');
       return;
     }
-    if (!isValidEmailFormat(cleanEmail)) {
+    if (cleanEmail !== null && !isValidEmailFormat(cleanEmail)) {
       onToast('error', 'Enter a valid email address.');
       return;
     }
@@ -154,6 +163,8 @@ export const RosterView: React.FC<RosterViewProps> = ({
         phone: form.phone.trim(),
         department: form.department.trim(),
         position: form.position.trim() || 'Member',
+        account_role: resolveRosterAccountRole(form.department, form.position),
+        active: form.active,
         notes: form.notes.trim()
       };
 
@@ -188,6 +199,22 @@ export const RosterView: React.FC<RosterViewProps> = ({
     }
   };
 
+  const handleToggleRosterActive = async (row: PortalRosterEntry) => {
+    const nextActive = !isRosterEntryActive(row);
+    const { error } = await sb.from('roster').update({ active: nextActive }).eq('id', row.id);
+    if (error) {
+      onToast('error', error.message || 'Could not update roster status.');
+      return;
+    }
+    await recordPortalAuditLog(me.id, me.email, nextActive ? 'roster.reactivate' : 'roster.deactivate', {
+      id: row.id,
+      email: row.email,
+      full_name: row.full_name
+    });
+    onToast('success', `${row.full_name} marked ${nextActive ? 'active' : 'inactive'}.`);
+    await onRefresh();
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -219,7 +246,7 @@ export const RosterView: React.FC<RosterViewProps> = ({
     }
     const { rows, headerError } = parseAndValidateRosterCsv(
       nextText,
-      roster.map(r => r.email)
+      roster.map(r => r.email).filter((e): e is string => Boolean(e))
     );
     setCsvHeaderError(headerError);
     setCsvPreview(rows);
@@ -385,27 +412,41 @@ export const RosterView: React.FC<RosterViewProps> = ({
               <tr className="border-b border-[#1A1217]/12 bg-[#F4EFE4] text-[11px] font-semibold uppercase tracking-wider text-[#1A1217]/70">
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Department</th>
                 <th className="px-4 py-3">Position</th>
                 <th className="px-4 py-3">Account</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1A1217]/10 text-sm">
               {filteredRows.map(row => {
-                const signedUp = linkedRosterIds.has(row.id);
+                const regStatus = getRosterRegistrationStatus(row, profiles);
+                const activeFlag = isRosterEntryActive(row);
                 return (
                   <tr key={row.id} className="hover:bg-[#EDE6D6]/45 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-[#1A1217]">{row.full_name}</td>
-                    <td className="px-4 py-3 text-[#1A1217]/80">{row.email}</td>
-                    <td className="px-4 py-3 tabular-nums text-[#1A1217]/75">{row.phone || '—'}</td>
+                    <td className="px-4 py-3 font-semibold text-[#1A1217]">
+                      <div>{row.full_name}</div>
+                      {row.phone ? <div className="text-xs font-normal tabular-nums text-[#1A1217]/60">{row.phone}</div> : null}
+                    </td>
+                    <td className="px-4 py-3 text-[#1A1217]/80">
+                      {row.email || <span className="text-xs font-semibold text-[#7C5A1E]">Missing email</span>}
+                    </td>
                     <td className="px-4 py-3 text-[#1A1217]/85">{row.department || '—'}</td>
                     <td className="px-4 py-3 text-[#1A1217]/85">{row.position || 'Member'}</td>
                     <td className="px-4 py-3">
-                      <span className={`v-status ${signedUp ? 'v-status-accepted' : 'v-status-pending'}`}>
-                        {signedUp ? 'Signed Up' : 'Pending'}
+                      <span className={`v-status ${regStatus === 'registered' ? 'v-status-accepted' : 'v-status-pending'}`}>
+                        {regStatus === 'registered' ? 'Registered' : regStatus === 'incomplete' ? 'Incomplete' : 'Pending'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleRosterActive(row)}
+                        className={`v-status cursor-pointer ${activeFlag ? 'v-status-accepted' : 'v-status-rejected'}`}
+                      >
+                        {activeFlag ? 'Active' : 'Inactive'}
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-1">
@@ -475,12 +516,11 @@ export const RosterView: React.FC<RosterViewProps> = ({
 
               <div>
                 <label htmlFor="r-email" className="mb-1 block text-xs font-semibold uppercase tracking-wider">
-                  Email *
+                  Email (leave blank only if unknown)
                 </label>
                 <input
                   id="r-email"
                   type="email"
-                  required
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   className="v-input"

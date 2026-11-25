@@ -149,7 +149,13 @@ export function mapAuthErrorMessage(
   }
 
   if (mode === 'up') {
-    if (/database error|not on the team/i.test(raw)) {
+    if (/inactive|deactivated/i.test(raw)) {
+      return {
+        message: 'Your roster entry is currently deactivated. Contact an admin.',
+        showResend: false
+      };
+    }
+    if (/database error|not on the team|isn't on the team/i.test(raw)) {
       return {
         message: "This email isn't on the team list. Use the exact email you gave on the team form, or ask an admin to add it.",
         showResend: false
@@ -249,3 +255,59 @@ export function resolvePortalGate(opts: {
   }
   return 'account';
 }
+
+export interface RosterEligibilityOutcome {
+  status: 'eligible' | 'blocked' | 'rpc_unavailable';
+  message: string;
+}
+
+export function interpretEligibilityCheck(
+  data: { eligible?: boolean; reason?: string } | null | undefined,
+  error: { message?: string; code?: string; status?: number } | null | undefined
+): RosterEligibilityOutcome {
+  if (error) {
+    const code = (error.code || '').toUpperCase();
+    const msg = (error.message || '').toLowerCase();
+    if (
+      code === 'PGRST202' ||
+      code === '42883' ||
+      error.status === 404 ||
+      msg.includes('could not find the function') ||
+      msg.includes('does not exist')
+    ) {
+      return { status: 'rpc_unavailable', message: '' };
+    }
+    return { status: 'rpc_unavailable', message: '' };
+  }
+
+  if (!data || typeof data.eligible !== 'boolean') {
+    return { status: 'rpc_unavailable', message: '' };
+  }
+
+  if (data.eligible) {
+    return {
+      status: 'eligible',
+      message: 'Approved roster email verified. Choose a password to complete registration.'
+    };
+  }
+
+  if (data.reason === 'inactive') {
+    return {
+      status: 'blocked',
+      message: 'Your roster entry is currently deactivated. Contact an administrator.'
+    };
+  }
+
+  if (data.reason === 'invalid_email') {
+    return {
+      status: 'blocked',
+      message: 'Enter a valid email address.'
+    };
+  }
+
+  return {
+    status: 'blocked',
+    message: "This email isn't on the approved Veritas MUN roster. Contact an administrator."
+  };
+}
+

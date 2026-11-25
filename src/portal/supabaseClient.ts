@@ -16,7 +16,7 @@ export interface PortalProfile {
   full_name: string;
   department: string;
   position: string;
-  role: 'member' | 'head' | 'admin';
+  role: 'member' | 'head' | 'advisor' | 'admin';
   active: boolean;
   created_at: string;
 }
@@ -60,11 +60,13 @@ export interface PortalApplication {
 export interface PortalRosterEntry {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
   phone: string;
   department: string;
   position: string;
   notes: string;
+  active?: boolean;
+  account_role?: 'member' | 'head' | 'advisor' | 'admin';
   created_at: string;
 }
 
