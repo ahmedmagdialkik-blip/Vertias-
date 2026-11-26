@@ -600,6 +600,7 @@
   }
 
   .vm-section-title-group {
+    min-width: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -609,6 +610,8 @@
 
   .vm-section-heading {
     margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-family: 'Cinzel', Georgia, serif;
     font-weight: 600;
     font-size: clamp(1.85rem, 3.8vw, 3.35rem);
@@ -619,6 +622,7 @@
 
   .vm-section-kicker {
     margin: 0;
+    min-width: 0;
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-style: italic;
     font-size: clamp(1.06rem, 1.5vw, 1.32rem);
@@ -636,7 +640,7 @@
 
   @media (max-width: 640px) {
     .vm-section-head {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 6px;
     }
     .vm-section-title-group {
@@ -1881,6 +1885,8 @@
 
   /* ===== EXECUTIVE BOARD HEADER JUMP DROPDOWN & TEXT-ONLY ROSTER ===== */
   .vm-eb-head-aside {
+    min-width: 0;
+    max-width: 100%;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1889,25 +1895,34 @@
 
   .vm-dept-dropdown {
     position: relative;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .vm-dept-dropdown-btn {
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     min-height: 44px;
-    padding: 8px 16px;
+    max-width: 100%;
+    padding: 8px clamp(12px, 2vw, 16px);
     border: 1px solid rgba(26, 18, 23, 0.34);
     background: var(--vm-cream-elevated);
     color: var(--vm-ink);
     font-family: 'Cinzel', Georgia, serif;
-    font-size: 0.74rem;
+    font-size: clamp(0.7rem, 0.9vw, 0.76rem);
     font-weight: 600;
-    letter-spacing: 0.11em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
+    text-align: left;
     cursor: pointer;
     transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.12s ease;
+  }
+
+  .vm-dept-dropdown-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -1935,8 +1950,8 @@
     right: 0;
     top: calc(100% + 6px);
     z-index: 35;
-    min-width: 280px;
-    max-width: min(92vw, 360px);
+    width: min(320px, calc(100vw - 2 * var(--vm-gutter)));
+    min-width: 0;
     max-height: 340px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -1969,6 +1984,7 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     color: var(--vm-ink);
+    overflow-wrap: anywhere;
     cursor: pointer;
     transition: background-color 0.14s ease, color 0.14s ease;
   }
@@ -2012,67 +2028,108 @@
     .vm-dept-dropdown-menu {
       left: 0;
       right: 0;
+      width: 100%;
       min-width: 0;
       max-width: 100%;
     }
   }
 
+  /* Responsive EB Grid — Explicit Breakpoints:
+     - 320px–430px: 1 column
+     - 431px–767px: 2 columns
+     - 768px–1023px: 2 columns
+     - 1024px–1439px: 3 columns
+     - 1440px and above: 4 columns */
+  #executive-board,
+  #executive-board * {
+    box-sizing: border-box;
+  }
+
+  #executive-board .vm-container {
+    width: 100%;
+    max-width: 1320px;
+    min-width: 0;
+  }
+
   .eb-directory {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: clamp(16px, 2.4vw, 32px);
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(14px, 2vw, 26px);
     align-items: start;
   }
 
   .eb-dept {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     scroll-margin-top: 88px;
     background: var(--vm-cream-elevated);
     border: 1px solid var(--vm-rule-light);
-    padding: clamp(18px, 2.8vw, 32px);
+    padding: clamp(12px, 1.8vw, 24px);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: clamp(10px, 1.3vw, 14px);
   }
 
   .eb-dept--lead {
-    grid-column: 1 / -1;
     border-color: rgba(47, 107, 52, 0.4);
   }
 
   .eb-dept-head {
-    padding-bottom: 12px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-bottom: 10px;
     border-bottom: 1.5px solid var(--vm-laurel);
+    display: flex;
+    align-items: flex-end;
   }
 
   .eb-dept-title {
     margin: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     font-family: 'Cinzel', Georgia, serif;
     font-weight: 600;
-    font-size: clamp(1.12rem, 1.8vw, 1.48rem);
-    line-height: 1.25;
-    letter-spacing: 0.05em;
+    font-size: clamp(0.95rem, 1.25vw, 1.24rem);
+    line-height: 1.28;
+    letter-spacing: 0.035em;
     color: var(--vm-ink);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 
   .eb-member-list {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .eb-dept--lead .eb-member-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px 24px;
-  }
-
+  /* Mobile (320px–767px): neatly stack role underneath name */
   .eb-member-item {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 11px 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: clamp(8px, 1.1vw, 11px) 0;
     border-bottom: 1px solid rgba(26, 18, 23, 0.12);
+  }
+
+  .eb-member-item:first-child {
+    padding-top: 2px;
   }
 
   .eb-member-item:last-child {
@@ -2080,85 +2137,95 @@
     padding-bottom: 2px;
   }
 
-  .eb-dept--lead .eb-member-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 10px 0;
-    border-bottom: 0;
-  }
-
   .eb-member-name {
+    min-width: 0;
+    max-width: 100%;
+    flex: 0 1 auto;
     font-family: 'Cinzel', Georgia, serif;
     font-weight: 600;
-    font-size: clamp(0.96rem, 1.05vw, 1.04rem);
-    line-height: 1.35;
+    font-size: clamp(0.88rem, 0.96vw, 0.98rem);
+    line-height: 1.38;
     color: var(--vm-ink);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 
   .eb-member-role {
+    min-width: 0;
+    max-width: 100%;
+    flex: 0 1 auto;
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-style: italic;
     font-weight: 600;
-    font-size: clamp(1rem, 1.1vw, 1.08rem);
+    font-size: clamp(0.92rem, 1.02vw, 1.04rem);
     line-height: 1.35;
     color: var(--vm-laurel-dark);
-    text-align: right;
-    flex-shrink: 0;
-  }
-
-  .eb-dept--lead .eb-member-role {
     text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 
-  /* Intermediate Tablet EB (768px–1023px): keep 2-col dept grid & 3-up lead dept, stack name/role cleanly inside narrow dept cards */
-  @media (min-width: 768px) and (max-width: 1023px) {
+  /* Large Mobile / Small Tablet (431px–767px): 2 columns */
+  @media (min-width: 431px) {
     .eb-directory {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
+      gap: clamp(12px, 2.2vw, 22px);
     }
-    .eb-dept:not(.eb-dept--lead) .eb-member-item {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 3px;
+    .eb-dept--lead {
+      grid-column: 1 / -1;
     }
-    .eb-dept:not(.eb-dept--lead) .eb-member-role {
-      text-align: left;
+    .eb-dept-head {
+      min-height: 2.7em;
     }
   }
 
-  /* Mobile EB (<= 767px): neat vertical stack of department sections */
-  @media (max-width: 767px) {
+  /* Tablet (768px–1023px): 2 columns + horizontal member rows where space permits */
+  @media (min-width: 768px) {
     .eb-directory {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: clamp(18px, 2vw, 24px);
     }
     .eb-dept--lead .eb-member-list {
-      grid-template-columns: 1fr;
-      gap: 0;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px clamp(16px, 2vw, 26px);
     }
     .eb-dept--lead .eb-member-item {
+      padding: 6px 0;
+      border-bottom: 0;
+    }
+    .eb-dept:not(.eb-dept--lead) .eb-member-item {
       flex-direction: row;
+      flex-wrap: wrap;
       align-items: baseline;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(26, 18, 23, 0.12);
-    }
-    .eb-dept--lead .eb-member-item:last-child {
-      border-bottom: 0;
+      gap: 3px 10px;
     }
   }
 
-  @media (max-width: 539px) {
-    .eb-dept {
-      padding: 18px 16px;
+  /* Desktop (1024px–1439px): 3 columns */
+  @media (min-width: 1024px) {
+    .eb-directory {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(18px, 1.8vw, 26px);
     }
-    .eb-member-item,
-    .eb-dept--lead .eb-member-item {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 3px;
+  }
+
+  /* Wide Desktop (1440px and above): 4 columns */
+  @media (min-width: 1440px) {
+    #executive-board .vm-container {
+      max-width: 1400px;
     }
-    .eb-member-role {
-      text-align: left;
+    .eb-directory {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(18px, 1.5vw, 24px);
+    }
+  }
+
+  @media (min-width: 1920px) {
+    #executive-board .vm-container {
+      max-width: 1560px;
     }
   }
 
