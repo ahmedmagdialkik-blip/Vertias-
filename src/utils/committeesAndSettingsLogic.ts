@@ -5,6 +5,13 @@ export interface CommitteeRecord {
   image_url: string;
   sort_order: number;
   enabled: boolean;
+  abbreviation?: string;
+  chamber?: string;
+  difficulty?: string;
+  topics?: string[];
+  chair_name?: string;
+  vice_chair_name?: string;
+  capacity?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -138,6 +145,13 @@ export function normalizeCommitteeRows(rows: unknown): CommitteeRecord[] {
     const sort_order = typeof row.sort_order === 'number' && Number.isFinite(row.sort_order) ? row.sort_order : i;
     const enabled = typeof row.enabled === 'boolean' ? row.enabled : true;
     if (!name) continue;
+    const topics = Array.isArray(row.topics)
+      ? row.topics.map(t => String(t || '').trim()).filter(Boolean)
+      : [];
+    const capacity =
+      typeof row.capacity === 'number' && Number.isFinite(row.capacity) && row.capacity > 0
+        ? Math.floor(row.capacity)
+        : undefined;
     clean.push({
       id,
       name,
@@ -145,6 +159,13 @@ export function normalizeCommitteeRows(rows: unknown): CommitteeRecord[] {
       image_url,
       sort_order,
       enabled,
+      abbreviation: typeof row.abbreviation === 'string' ? row.abbreviation.trim() : undefined,
+      chamber: typeof row.chamber === 'string' ? row.chamber.trim() : undefined,
+      difficulty: typeof row.difficulty === 'string' ? row.difficulty.trim() : undefined,
+      topics,
+      chair_name: typeof row.chair_name === 'string' ? row.chair_name.trim() : undefined,
+      vice_chair_name: typeof row.vice_chair_name === 'string' ? row.vice_chair_name.trim() : undefined,
+      capacity,
       created_at: typeof row.created_at === 'string' ? row.created_at : undefined,
       updated_at: typeof row.updated_at === 'string' ? row.updated_at : undefined
     });

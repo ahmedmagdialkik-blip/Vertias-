@@ -249,7 +249,13 @@ export function resolvePortalGate(opts: {
   if (!opts.profile.active) return 'waiting_approval';
 
   const path = normalizeAuthPath(opts.pathname);
-  if (path === '/admin') {
+  if (path === '/admin' || path === '/eb' || path === '/scanner' || path === '/staff' || path === '/pass') {
+    if (path === '/pass' || path === '/staff') {
+      return 'admin';
+    }
+    if (path === '/scanner') {
+      return 'admin';
+    }
     const canAdmin = opts.profile.role === 'admin' || opts.profile.role === 'head';
     return canAdmin ? 'admin' : 'access_denied';
   }

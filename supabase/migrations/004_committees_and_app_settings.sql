@@ -16,6 +16,16 @@ create table if not exists public.committees (
 create index if not exists idx_committees_sort_order
   on public.committees (sort_order asc, created_at asc);
 
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
 drop trigger if exists trg_committees_updated_at on public.committees;
 create trigger trg_committees_updated_at
 before update on public.committees

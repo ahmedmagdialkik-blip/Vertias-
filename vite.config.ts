@@ -14,7 +14,21 @@ export default defineConfig(() => {
         configureServer(server) {
           server.middlewares.use((req, _res, next) => {
             const url = (req.url || '').split('?')[0].replace(/\/$/, '');
-            if (url === '/admin' || url === '/login' || url === '/signup' || url === '/account' || url === '/apply') {
+            if (
+              url === '/admin' ||
+              url === '/eb' ||
+              url === '/staff' ||
+              url === '/pass' ||
+              url === '/scanner' ||
+              url === '/invite' ||
+              url.startsWith('/invite/') ||
+              url === '/eb-signup' ||
+              url === '/setup' ||
+              url === '/login' ||
+              url === '/signup' ||
+              url === '/account' ||
+              url === '/apply'
+            ) {
               req.url = '/portal/index.html';
             }
             next();

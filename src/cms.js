@@ -54,10 +54,26 @@ function normalizeLegacyContentRows(rows) {
 
 (async () => {
   try {
-    const [siteRows, teamRows, committeeRows] = await Promise.all([
+    const [
+      siteRows,
+      teamRows,
+      committeeRows,
+      scheduleDays,
+      scheduleSessions,
+      faqs,
+      documents,
+      sponsors,
+      gallery
+    ] = await Promise.all([
       get('site_content').catch(() => null),
       get('team_cards', '&visible=eq.true&order=sort_order.asc').catch(() => null),
-      get('committees', '&enabled=eq.true&order=sort_order.asc,created_at.asc').catch(() => null)
+      get('committees', '&enabled=eq.true&order=sort_order.asc,created_at.asc').catch(() => null),
+      get('schedule_days', '&published=eq.true&order=day_number.asc,sort_order.asc').catch(() => null),
+      get('schedule_sessions', '&published=eq.true&order=sort_order.asc,start_time.asc').catch(() => null),
+      get('faqs', '&published=eq.true&order=sort_order.asc,created_at.asc').catch(() => null),
+      get('conference_documents', '&published=eq.true&audience=eq.public&order=sort_order.asc,created_at.asc').catch(() => null),
+      get('sponsors', '&published=eq.true&order=sort_order.asc,created_at.asc').catch(() => null),
+      get('gallery_items', '&published=eq.true&order=sort_order.asc,created_at.asc').catch(() => null)
     ]);
 
     const payload = {};
@@ -70,6 +86,12 @@ function normalizeLegacyContentRows(rows) {
     if (Array.isArray(committeeRows)) {
       payload.committees = normalizeCommitteeRows(committeeRows).filter((c) => c.enabled);
     }
+    if (Array.isArray(scheduleDays)) payload.scheduleDays = scheduleDays;
+    if (Array.isArray(scheduleSessions)) payload.scheduleSessions = scheduleSessions;
+    if (Array.isArray(faqs)) payload.faqs = faqs;
+    if (Array.isArray(documents)) payload.documents = documents;
+    if (Array.isArray(sponsors)) payload.sponsors = sponsors;
+    if (Array.isArray(gallery)) payload.gallery = gallery;
 
     if (typeof window.__veritasApplyPublicData === 'function') {
       window.__veritasApplyPublicData(payload);

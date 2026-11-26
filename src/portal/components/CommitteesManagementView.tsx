@@ -18,6 +18,13 @@ interface CommitteesManagementViewProps {
 interface CommitteeDraft {
   id: string | null;
   name: string;
+  abbreviation: string;
+  chamber: string;
+  difficulty: string;
+  capacity: number;
+  chair_name: string;
+  vice_chair_name: string;
+  topicsText: string;
   description: string;
   image_url: string;
   enabled: boolean;
@@ -26,6 +33,13 @@ interface CommitteeDraft {
 const EMPTY_DRAFT: CommitteeDraft = {
   id: null,
   name: '',
+  abbreviation: '',
+  chamber: 'General Assembly',
+  difficulty: 'Intermediate',
+  capacity: 30,
+  chair_name: '',
+  vice_chair_name: '',
+  topicsText: '',
   description: '',
   image_url: '',
   enabled: true
@@ -82,6 +96,13 @@ export const CommitteesManagementView: React.FC<CommitteesManagementViewProps> =
     setDraft({
       id: item.id,
       name: item.name,
+      abbreviation: item.abbreviation || '',
+      chamber: item.chamber || 'General Assembly',
+      difficulty: item.difficulty || 'Intermediate',
+      capacity: item.capacity || 30,
+      chair_name: item.chair_name || '',
+      vice_chair_name: item.vice_chair_name || '',
+      topicsText: Array.isArray(item.topics) ? item.topics.join('\n') : '',
       description: item.description,
       image_url: item.image_url,
       enabled: item.enabled
@@ -143,8 +164,19 @@ export const CommitteesManagementView: React.FC<CommitteesManagementViewProps> =
     }
 
     setSaving(true);
+    const parsedTopics = draft.topicsText
+      .split(/\r?\n/)
+      .map(t => t.trim())
+      .filter(Boolean);
     const payload = {
       name: draft.name.trim(),
+      abbreviation: draft.abbreviation.trim(),
+      chamber: draft.chamber.trim() || 'General Assembly',
+      difficulty: draft.difficulty.trim() || 'Intermediate',
+      capacity: Math.max(1, Math.min(500, Number(draft.capacity) || 30)),
+      chair_name: draft.chair_name.trim(),
+      vice_chair_name: draft.vice_chair_name.trim(),
+      topics: parsedTopics,
       description: draft.description.trim(),
       image_url: sanitizeCommitteeLogoUrl(draft.image_url),
       enabled: Boolean(draft.enabled)
@@ -315,16 +347,101 @@ export const CommitteesManagementView: React.FC<CommitteesManagementViewProps> =
             </button>
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+            <div className="field">
+              <label htmlFor="committee-name">
+                Committee name<span className="req" aria-hidden="true">*</span>
+              </label>
+              <input
+                id="committee-name"
+                required
+                value={draft.name}
+                onChange={e => setDraft(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., United Nations Security Council"
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="committee-abbr">Abbreviation</label>
+              <input
+                id="committee-abbr"
+                value={draft.abbreviation}
+                onChange={e => setDraft(prev => ({ ...prev, abbreviation: e.target.value }))}
+                placeholder="e.g., UNSC"
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="committee-chamber">Chamber / Council Type</label>
+              <select
+                id="committee-chamber"
+                value={draft.chamber}
+                onChange={e => setDraft(prev => ({ ...prev, chamber: e.target.value }))}
+              >
+                <option>General Assembly</option>
+                <option>Security Council</option>
+                <option>Specialized Agency</option>
+                <option>Crisis Committee</option>
+                <option>ECOSOC & Regional</option>
+                <option>Judicial / ICJ</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="committee-difficulty">Difficulty</label>
+              <select
+                id="committee-difficulty"
+                value={draft.difficulty}
+                onChange={e => setDraft(prev => ({ ...prev, difficulty: e.target.value }))}
+              >
+                <option>Beginner</option>
+                <option>Intermediate</option>
+                <option>Advanced</option>
+                <option>Crisis / Expert</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="committee-capacity">Delegate Capacity</label>
+              <input
+                id="committee-capacity"
+                type="number"
+                min={1}
+                max={500}
+                value={draft.capacity}
+                onChange={e => setDraft(prev => ({ ...prev, capacity: Number(e.target.value) || 30 }))}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="committee-chair">Chair</label>
+              <input
+                id="committee-chair"
+                value={draft.chair_name}
+                onChange={e => setDraft(prev => ({ ...prev, chair_name: e.target.value }))}
+                placeholder="Head Chair name"
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="committee-vice-chair">Co-Chair / Vice Chair</label>
+              <input
+                id="committee-vice-chair"
+                value={draft.vice_chair_name}
+                onChange={e => setDraft(prev => ({ ...prev, vice_chair_name: e.target.value }))}
+                placeholder="Vice Chair name"
+              />
+            </div>
+          </div>
+
           <div className="field">
-            <label htmlFor="committee-name">
-              Committee name<span className="req" aria-hidden="true">*</span>
-            </label>
-            <input
-              id="committee-name"
-              required
-              value={draft.name}
-              onChange={e => setDraft(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g., United Nations Security Council (UNSC)"
+            <label htmlFor="committee-topics">Agenda Topics (one topic per line)</label>
+            <textarea
+              id="committee-topics"
+              value={draft.topicsText}
+              onChange={e => setDraft(prev => ({ ...prev, topicsText: e.target.value }))}
+              placeholder={'Topic A: Maritime Security in the Red Sea\nTopic B: Non-Proliferation Frameworks'}
+              style={{ minHeight: 74 }}
             />
           </div>
 
@@ -511,12 +628,30 @@ export const CommitteesManagementView: React.FC<CommitteesManagementViewProps> =
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span className="admin-kicker" style={{ margin: '0 !important' }}>#{idx + 1}</span>
-                      <h3 style={{ margin: 0 }}>{item.name}</h3>
+                      <h3 style={{ margin: 0 }}>
+                        {item.name}
+                        {item.abbreviation ? ` (${item.abbreviation})` : ''}
+                      </h3>
                       <span className={item.enabled ? 'badge g' : 'badge r'} style={{ marginLeft: 0 }}>
                         {item.enabled ? 'Enabled' : 'Disabled'}
                       </span>
+                      {item.chamber && <span className="badge" style={{ marginLeft: 0 }}>{item.chamber}</span>}
+                      {item.difficulty && <span className="badge" style={{ marginLeft: 0 }}>{item.difficulty}</span>}
+                      {item.capacity ? <span className="badge" style={{ marginLeft: 0 }}>{item.capacity} seats</span> : null}
                     </div>
+                    {(item.chair_name || item.vice_chair_name) && (
+                      <div style={{ fontSize: 13, color: '#51464A', marginTop: 4 }}>
+                        {item.chair_name ? `Chair: ${item.chair_name}` : ''}
+                        {item.chair_name && item.vice_chair_name ? ' · ' : ''}
+                        {item.vice_chair_name ? `Co-Chair: ${item.vice_chair_name}` : ''}
+                      </div>
+                    )}
                     <p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{item.description}</p>
+                    {Array.isArray(item.topics) && item.topics.length > 0 && (
+                      <div style={{ marginTop: 6, fontSize: 13, color: '#1F4A25' }}>
+                        <strong>Topics:</strong> {item.topics.join(' | ')}
+                      </div>
+                    )}
                   </div>
                 </div>
 

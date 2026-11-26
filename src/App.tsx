@@ -29,9 +29,15 @@ const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
         .select('*')
         .eq('enabled', true)
         .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: true }),
+      supabase.from('schedule_days').select('*').eq('published', true).order('day_number', { ascending: true }).order('sort_order', { ascending: true }),
+      supabase.from('schedule_sessions').select('*').eq('published', true).order('sort_order', { ascending: true }).order('start_time', { ascending: true }),
+      supabase.from('faqs').select('*').eq('published', true).order('sort_order', { ascending: true }),
+      supabase.from('conference_documents').select('*').eq('published', true).eq('audience', 'public').order('sort_order', { ascending: true }),
+      supabase.from('sponsors').select('*').eq('published', true).order('sort_order', { ascending: true }),
+      supabase.from('gallery_items').select('*').eq('published', true).order('sort_order', { ascending: true })
     ])
-      .then(([contentRes, cardsRes, committeesRes]) => {
+      .then(([contentRes, cardsRes, committeesRes, daysRes, sessRes, faqRes, docRes, spRes, galRes]) => {
         if (cancelled) return;
         const content = mergeSiteContentWithFallback(contentRes.data ?? []);
         const cards =
@@ -41,7 +47,17 @@ const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
         const committees = committeesRes.error
           ? undefined
           : normalizeCommitteeRows(committeesRes.data ?? []).filter(c => c.enabled);
-        window.__veritasApplyPublicData?.({ content, teamCards: cards, committees });
+        window.__veritasApplyPublicData?.({
+          content,
+          teamCards: cards,
+          committees,
+          scheduleDays: daysRes.error ? undefined : daysRes.data ?? [],
+          scheduleSessions: sessRes.error ? undefined : sessRes.data ?? [],
+          faqs: faqRes.error ? undefined : faqRes.data ?? [],
+          documents: docRes.error ? undefined : docRes.data ?? [],
+          sponsors: spRes.error ? undefined : spRes.data ?? [],
+          gallery: galRes.error ? undefined : galRes.data ?? []
+        });
       })
       .catch(() => {
         // Keep built-in fallback content on transient network failure

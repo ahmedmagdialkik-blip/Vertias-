@@ -18,7 +18,6 @@ import {
   type SecurityProofMeta
 } from '../utils/securityApplicationLogic';
 import {
-  interpretEligibilityCheck,
   mapAuthErrorMessage,
   MIN_AUTH_PASSWORD_LENGTH,
   normalizeAuthPath,
@@ -29,18 +28,6 @@ import {
   validateAuthSubmission,
   type AuthMode
 } from '../utils/portalAuthLogic';
-import {
-  OFFICIAL_PDF_ROSTER,
-  PDF_DEPARTMENTS,
-  findLinkedProfileForRoster,
-  getRosterRegistrationStatus,
-  isRosterEntryActive,
-  isValidNullableEmail,
-  normalizeNullableEmail,
-  planPdfRosterSync,
-  resolveRosterAccountRole,
-  type RosterAccountRole
-} from '../utils/pdfRosterData';
 import {
   buildVolunteerProofStoragePath,
   countVolunteerWords,
@@ -66,7 +53,45 @@ import {
 } from '../utils/committeesAndSettingsLogic';
 import {CommitteesManagementView} from './components/CommitteesManagementView';
 import {ApplicationsManagementView} from './components/ApplicationsManagementView';
-import {LayoutDashboard,ClipboardList,Users,UserRound,Megaphone,History,Globe,ChevronRight,ExternalLink,LogOut,FileText,Landmark,SlidersHorizontal} from 'lucide-react';
+import {ApplicationsReviewView} from './components/ApplicationsReviewView';
+import {InviteOnboardingView} from './components/InviteOnboardingView';
+import {HrInvitesView} from './components/HrInvitesView';
+import {EmailCenterView} from './components/EmailCenterView';
+import {QrAttendanceView} from './components/QrAttendanceView';
+import {AccountsGovernanceView} from './components/AccountsGovernanceView';
+import {DepartmentsRegistryView,OperationsWorkspaceView} from './components/DepartmentsAndOpsView';
+import {ConferenceCmsView} from './components/ConferenceCmsView';
+import {SupportAccessView} from './components/SupportAccessView';
+import {SupportSessionOverlay} from './components/SupportSessionOverlay';
+import {
+  getAuthorizedManagementTabs,
+  isQrScannerAuthorizedProfile,
+  type PortalTabId
+} from '../utils/managementLogic';
+import type {SupportAccessSession} from '../utils/supportAccessLogic';
+import {
+  Briefcase,
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  ClipboardList,
+  ExternalLink,
+  FileText,
+  Globe,
+  History,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  Megaphone,
+  QrCode,
+  ScanLine,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserPlus,
+  UserRound,
+  Users
+} from 'lucide-react';
 
 // Publishable key: safe in the browser. All access is enforced by Row Level Security in the database.
 const PROOFS_BUCKET='application-proofs';
@@ -86,10 +111,10 @@ input,textarea,select{font:inherit;padding:7px 9px;border:1px solid #BAB1A0;back
 textarea{width:100%;min-height:90px}.btn{background:#1A1217;color:#EDE6D6;border:1px solid #1A1217;padding:9px 18px;font:inherit;cursor:pointer;border-radius:2px;text-decoration:none;display:inline-block}.btn:hover{background:#30262B;border-color:#30262B}.btn.red{background:#8a2b2b}.btn.ghost{background:none;color:#1A1217;border:1px solid #BAB1A0}.btn.ghost:hover{background:#E5DDCF;border-color:#80766F}.btn:disabled{opacity:.5}
 .tw{overflow-x:auto;margin:14px 0}table{border-collapse:collapse;width:100%;font-size:16px}td,th{border-bottom:1px solid #BAB1A0;padding:6px;text-align:left;vertical-align:top}th{font-family:Cinzel,serif;font-size:.8rem}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.card{background:#F7F2E6;padding:18px;border:1px solid #BAB1A0;border-left:3px solid #2F6B34}.card b{font-size:2.2rem;display:block}
-.box{max-width:440px;margin:8vh auto;padding:30px;background:#F7F2E6;border:1px solid #BAB1A0;box-shadow:3px 5px 0 #BAB1A055}.box input,.box select,.box textarea{width:100%;margin:8px 0}.box a{color:#2F6B34;text-decoration:none;border-bottom:1px solid #2F6B3466;font-weight:600}.box a:hover{color:#1F4A25;border-bottom-color:#1F4A25}.msg{margin:10px 0;color:#2F6B34}.box .note{margin:10px 0;color:#51464A}.box .err{margin:10px 0;color:#8a2b2b;font-weight:600}
+.box{max-width:440px;margin:8vh auto;padding:30px;background:#F7F2E6;border:1px solid #BAB1A0;box-shadow:3px 5px 0 #BAB1A055}.box input,.box select,.box textarea{width:100%;margin:8px 0}.msg{margin:10px 0;color:#2F6B34}.box .err{margin:10px 0;color:#8a2b2b;font-weight:600}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
 .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.8rem;background:#1A121722;margin-left:6px;font-family:Cormorant Garamond,serif}.badge.g{background:#2F6B3433;color:#1F4A25}.badge.r{background:#8a2b2b33;color:#6b1f1f}
-.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{background:none;border:1px solid #BAB1A0;padding:6px 14px;font:inherit;cursor:pointer;color:#1A1217}.tabs button.on{background:#1A1217;color:#EDE6D6}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tabs button{background:none;border:1px solid #BAB1A0;padding:6px 14px;font:inherit;cursor:pointer;color:#1A1217;display:inline-flex;align-items:center}.tabs button.on{background:#1A1217;color:#EDE6D6}
 @media(max-width:760px){.wrap{flex-direction:column}.side{width:100%;display:flex;flex-wrap:wrap;gap:4px;padding:10px}.side .brand{width:100%;margin:4px}.side button,.side a{width:auto}.main{padding:16px}}
 /* Security Application (/apply) */
 .apply-shell{min-height:100vh;background:#1A1217;color:#EDE6D6;padding:26px 18px 64px}
@@ -315,9 +340,7 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
   const [pw2,setPw2]=useState('');
   const [msg,setMsg]=useState(initialMessage||'');
   const [isErr,setIsErr]=useState(Boolean(initialIsError));
-  const [isNote,setIsNote]=useState(false);
   const [resendEmail,setResendEmail]=useState('');
-  const [verifiedRosterEmail,setVerifiedRosterEmail]=useState('');
   const [busy,setBusy]=useState(false);
 
   useEffect(()=>{
@@ -338,59 +361,11 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
     setMode(next);
     setMsg('');
     setIsErr(false);
-    setIsNote(false);
     setResendEmail('');
-    setVerifiedRosterEmail('');
     const norm=normalizeAuthPath(location.pathname);
     if(norm==='/login'||norm==='/signup'){
       const target=next==='up'?'/signup':'/login';
       if(norm!==target)window.history.replaceState(null,'',target);
-    }
-  };
-
-  const checkRosterEligibility=async(targetEmail:string):Promise<'eligible'|'blocked'|'rpc_unavailable'>=>{
-    const clean=targetEmail.trim().toLowerCase();
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean)){
-      setIsErr(true);
-      setIsNote(false);
-      setMsg('Enter a valid email address.');
-      return 'blocked';
-    }
-    try{
-      const {data,error}=await sb.rpc('check_roster_signup_eligibility',{check_email:clean});
-      const outcome=interpretEligibilityCheck(data,error);
-      if(outcome.status==='blocked'){
-        setVerifiedRosterEmail('');
-        setIsErr(true);
-        setIsNote(false);
-        setMsg(outcome.message);
-        return 'blocked';
-      }
-      if(outcome.status==='eligible'){
-        setVerifiedRosterEmail(clean);
-        setIsErr(false);
-        setIsNote(false);
-        setMsg(outcome.message);
-        return 'eligible';
-      }
-      return 'rpc_unavailable';
-    }catch{
-      return 'rpc_unavailable';
-    }
-  };
-
-  const verifyEmailOnly=async()=>{
-    setBusy(true);
-    setResendEmail('');
-    try{
-      const status=await checkRosterEligibility(email);
-      if(status==='rpc_unavailable'){
-        setIsErr(false);
-        setIsNote(true);
-        setMsg('Enter your password above and click Create account to verify your roster email.');
-      }
-    }finally{
-      setBusy(false);
     }
   };
 
@@ -418,7 +393,6 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
     e.preventDefault();
     setMsg('');
     setIsErr(false);
-    setIsNote(false);
     setResendEmail('');
     const em=email.trim().toLowerCase();
     const validationErr=validateAuthSubmission(mode,em,pw,pw2);
@@ -439,10 +413,6 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
           if(mapped.showResend)setResendEmail(em);
         }
       }else if(mode==='up'){
-        const eligibility=await checkRosterEligibility(em);
-        if(eligibility==='blocked'){
-          return;
-        }
         const result=await sb.auth.signUp({
           email:em,
           password:pw,
@@ -481,17 +451,15 @@ function Auth({recovery,path,initialMessage,initialIsError}:any){
 
   const t:Record<AuthMode,string>={in:'Sign in',up:'Create account',forgot:'Reset password',reset:'Choose a new password'};
   return <form className="box" onSubmit={go}><h2 style={{margin:0}}>Veritas MUN</h2><h3>{t[mode]}</h3>
-    {mode==='up'&&<p>Enter your registered Veritas MUN roster email, then choose your own password (at least {MIN_AUTH_PASSWORD_LENGTH} characters) to create your account.</p>}
-    {mode!=='reset'&&<input type="email" required placeholder="Email" value={email} onChange={e=>{setEmail(e.target.value);if(verifiedRosterEmail&&e.target.value.trim().toLowerCase()!==verifiedRosterEmail)setVerifiedRosterEmail('')}} aria-label="Email" autoComplete="email"/>}
-    {mode==='up'&&verifiedRosterEmail&&<div className="badge g" style={{margin:'2px 0 8px',marginLeft:0}}>Approved roster email verified</div>}
+    {mode==='up'&&<p>Use the email you gave on the team form. Choose a password (at least {MIN_AUTH_PASSWORD_LENGTH} characters) and confirm your email before signing in.</p>}
+    {mode!=='reset'&&<input type="email" required placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} aria-label="Email" autoComplete="email"/>}
     {mode!=='forgot'&&<input type="password" required minLength={mode==='up'||mode==='reset'?MIN_AUTH_PASSWORD_LENGTH:undefined} placeholder={mode==='in'?'Password':'New password'} value={pw} onChange={e=>setPw(e.target.value)} aria-label="Password" autoComplete={mode==='in'?'current-password':'new-password'}/>}
     {(mode==='up'||mode==='reset')&&<input type="password" required minLength={MIN_AUTH_PASSWORD_LENGTH} placeholder="Repeat password" value={pw2} onChange={e=>setPw2(e.target.value)} aria-label="Repeat password" autoComplete="new-password"/>}
     <div className="toolbar" style={{margin:'10px 0 0'}}>
       <button className="btn" disabled={busy}>{busy?'Please wait...':t[mode]}</button>
-      {mode==='up'&&<button type="button" className="btn ghost" disabled={busy||!email.trim()} onClick={verifyEmailOnly}>Check email</button>}
       {resendEmail&&<button type="button" className="btn ghost" disabled={busy} onClick={resendConfirmation}>Resend confirmation email</button>}
     </div>
-    <div className={isErr?'err':isNote?'note':'msg'} role={isErr?'alert':'status'}>{msg}</div>
+    <div className={isErr?'err':'msg'} role={isErr?'alert':'status'}>{msg}</div>
     {mode!=='reset'&&<div className="toolbar">{mode!=='in'&&<a href="/login" onClick={e=>{e.preventDefault();switchMode('in')}}>Sign in</a>}{mode!=='up'&&<a href="/signup" onClick={e=>{e.preventDefault();switchMode('up')}}>Create account</a>}{mode==='in'&&<a href="#" onClick={e=>{e.preventDefault();switchMode('forgot')}}>Forgot password?</a>}</div>}</form>;
 }
 
@@ -1273,213 +1241,22 @@ function SecurityApply({onVolunteer,showOtherTrack=true}:any){
 function Account({me}:any){
   const [ann,setAnn]=useState<any[]>([]);
   useEffect(()=>{sb.from('announcements').select('*').order('created_at',{ascending:false}).then(({data}:any)=>setAnn(data||[]))},[]);
+  const canScan=isQrScannerAuthorizedProfile(me);
   return <div className="main" style={{maxWidth:760,margin:'0 auto'}}>
     <h1>Welcome, {(me.full_name||'').split(' ')[0]}</h1>
     <div className="card"><b style={{fontSize:'1.4rem'}}>{me.full_name}</b>{me.position||'Member'}{me.department?' \u00b7 '+me.department:''}<br/>Access level: {me.role}</div>
     <h2>Announcements</h2>{ann.length?ann.map(a=><div className="card" key={a.id} style={{marginBottom:12}}><h3 style={{margin:0}}>{a.title}</h3><p style={{whiteSpace:'pre-wrap'}}>{a.body}</p></div>):<p>No announcements yet.</p>}
-    <div className="toolbar">{(me.role==='admin'||me.role==='head')&&<a className="btn" href="/admin">{me.role==='admin'?'Admin panel':'Review applications'}</a>}<a className="btn ghost" href="/">Back to site</a><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div></div>;
+    <div className="toolbar">
+      {(me.role==='admin'||me.role==='head')&&<a className="btn" href="/admin">{me.role==='admin'?'Admin panel':'Department portal'}</a>}
+      <a className="btn ghost" href="/staff">Workspace &amp; Shifts</a>
+      <a className="btn ghost" href="/pass">My QR Pass</a>
+      {canScan&&<a className="btn ghost" href="/scanner">Live QR Scanner</a>}
+      <a className="btn ghost" href="/">Back to site</a>
+      <button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button>
+    </div></div>;
 }
 
-// ---------- Applications: heads recommend, Secretariat + IT decide ----------
-
-interface SignedProof{
-  name:string;
-  url:string;
-  size?:number;
-  mimeType?:string;
-  isImage:boolean;
-}
-function isImageProof(name:string,mime?:string){
-  if(mime&&mime.toLowerCase().startsWith('image/'))return true;
-  return /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(name);
-}
-function AppCard({a,me,reload}:any){
-  const [open,setOpen]=useState(false);
-  const [note,setNote]=useState('');
-  const [msg,setMsg]=useState('');
-  const [proofs,setProofs]=useState<SignedProof[]>([]);
-  const [proofLoading,setProofLoading]=useState(false);
-  const [lightbox,setLightbox]=useState<SignedProof|null>(null);
-
-  const loadSignedProofs=useCallback(async()=>{
-    const rawList=Array.isArray(a.proof_urls)?a.proof_urls:[];
-    if(!rawList.length){setProofs([]);return}
-    setProofLoading(true);
-    const out:SignedProof[]=[];
-    for(const item of rawList){
-      const path=typeof item==='string'?item:item?.path;
-      const name=typeof item==='string'?(path?.split('/').pop()||'Proof'):(item?.name||'Proof');
-      const mimeType=typeof item==='object'?item?.mimeType:'';
-      const size=typeof item==='object'?item?.size:undefined;
-      if(!path)continue;
-      const {data}=await sb.storage.from(PROOFS_BUCKET).createSignedUrl(path,3600);
-      if(data?.signedUrl){
-        out.push({name,url:data.signedUrl,size,mimeType,isImage:isImageProof(name,mimeType)});
-      }
-    }
-    setProofs(out);
-    setProofLoading(false);
-  },[a.proof_urls]);
-
-  useEffect(()=>{
-    if(open)loadSignedProofs();
-  },[open,loadSignedProofs]);
-
-  useEffect(()=>{
-    if(!lightbox)return;
-    const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')setLightbox(null)};
-    window.addEventListener('keydown',onKey);
-    return()=>window.removeEventListener('keydown',onKey);
-  },[lightbox]);
-
-  const rpc=async(fn:string,args:any)=>{const {error}=await sb.rpc(fn,args);setMsg(error?error.message:'Saved');if(!error){setNote('');reload()}};
-  const rec=a.recommendation;const admin=me.role==='admin';
-  const proofCount=Array.isArray(a.proof_urls)?a.proof_urls.length:0;
-
-  return <div className="card application-card">
-    <div className="toolbar" style={{margin:0,justifyContent:'space-between'}}>
-      <div className="toolbar" style={{margin:0}}>
-        <b style={{fontSize:'1.25rem'}}>{a.full_name}</b>
-        <span className="tag">{a.track||'Security'}</span>
-        <span className={'tag '+(a.status==='accepted'?'g':a.status==='rejected'?'r':'')}>{a.status}</span>
-        {rec&&<span className={'tag '+(rec==='accept'?'g':'r')}>Head recommends {rec}</span>}
-        {a.attend_all_days===false&&<span className="tag r">Cannot attend all days</span>}
-        {proofCount>0&&<span className="tag">{proofCount} proof{proofCount===1?'':'s'}</span>}
-      </div>
-      <div className="toolbar" style={{margin:0}}>
-        <span style={{opacity:.7,fontSize:'.92rem'}}>{new Date(a.created_at).toLocaleDateString()}</span>
-        <button className="btn ghost" onClick={()=>setOpen(!open)}>{open?'Close':'Open'}</button>
-      </div>
-    </div>
-
-    {open&&<div style={{marginTop:14}}>
-      <div className="dossier-grid">
-        <div><span className="review-k">Email</span>{a.email}</div>
-        <div><span className="review-k">Phone Number</span>{a.phone||'-'}</div>
-        <div><span className="review-k">Emergency Contact</span>{a.emergency_contact||'-'}</div>
-        <div><span className="review-k">School Name</span>{a.school||'-'}</div>
-        <div><span className="review-k">Gender &amp; Grade</span>{a.gender||'-'}{a.grade?' · Grade '+a.grade:''}</div>
-        <div><span className="review-k">Attend all days?</span>{a.attend_all_days===false?'No':'Yes'}</div>
-      </div>
-
-      {a.experience&&<div className="dossier-q"><b>Previous Experiences</b><div className="review-v">{a.experience}</div></div>}
-
-      <div className="dossier-q">
-        <b>Proof of Experiences ({proofCount})</b>
-        {proofLoading&&<p style={{margin:'6px 0'}}>Loading secure previews...</p>}
-        {!proofLoading&&proofs.length===0&&<p style={{margin:'6px 0',opacity:.75}}>No proof files attached.</p>}
-        {proofs.length>0&&<div className="proof-grid">
-          {proofs.map((p,idx)=>(
-            <div className="proof-item" key={p.name+idx}>
-              {p.isImage
-                ?<img className="proof-thumb" src={p.url} alt={p.name} style={{cursor:'zoom-in'}} onClick={()=>setLightbox(p)}/>
-                :<div className="proof-doc">{p.name.split('.').pop()?.toUpperCase()||'FILE'}</div>}
-              <div className="proof-meta">
-                <strong>{p.name}</strong>
-                {p.size?<div style={{opacity:.72}}>{formatVolunteerFileSize(p.size)}</div>:null}
-              </div>
-              <div className="toolbar" style={{margin:0}}>
-                {p.isImage&&<button type="button" className="btn ghost" style={{padding:'5px 10px',minHeight:34}} onClick={()=>setLightbox(p)}>Zoom</button>}
-                <a className="btn ghost" style={{padding:'5px 10px',minHeight:34}} href={p.url} target="_blank" rel="noopener noreferrer">Open</a>
-                <a className="btn ghost" style={{padding:'5px 10px',minHeight:34}} href={p.url} download={p.name} rel="noopener noreferrer">Download</a>
-              </div>
-            </div>
-          ))}
-        </div>}
-      </div>
-
-      {(()=>{const isVol=/^volunteer/i.test(String(a.track||''));return <>
-        {a.why&&<div className="dossier-q"><b>{isVol?'Why Volunteer Department?':'Why Security?'} ({countWords(a.why)} words)</b><div className="review-v">{a.why}</div></div>}
-        {a.role_understanding&&<div className="dossier-q"><b>{isVol?'Role of a Volunteer at MUN':'Role of Security at MUN'} ({countWords(a.role_understanding)} words)</b><div className="review-v">{a.role_understanding}</div></div>}
-        {a.wandering_action&&<div className="dossier-q"><b>Action When Another Volunteer Wanders ({countWords(a.wandering_action)} words)</b><div className="review-v">{a.wandering_action}</div></div>}
-        {a.fight_precautions&&<div className="dossier-q"><b>Delegate Fight Precautions ({countWords(a.fight_precautions)} words)</b><div className="review-v">{a.fight_precautions}</div></div>}
-        {a.rules_enforcement&&<div className="dossier-q"><b>Ensuring Rules Enforcement ({countWords(a.rules_enforcement)} words)</b><div className="review-v">{a.rules_enforcement}</div></div>}
-        {a.issues_note&&<div className="dossier-q"><b>Issues Reported</b><div className="review-v">{a.issues_note}</div></div>}
-      </>})()}
-
-      {a.recommendation_note&&<p><i>Head's note: {a.recommendation_note}</i></p>}
-      {a.decision_note&&<p><i>Decision note: {a.decision_note}</i></p>}
-
-      <textarea placeholder="Reviewer note (optional)" value={note} onChange={e=>setNote(e.target.value)} aria-label="Note" style={{marginTop:10}}/>
-      <div className="toolbar">
-        {a.status==='pending'&&<>
-          <button className="btn" onClick={()=>rpc('recommend_application',{app_id:a.id,rec:'accept',note})}>Recommend accept</button>
-          <button className="btn red" onClick={()=>rpc('recommend_application',{app_id:a.id,rec:'reject',note})}>Recommend reject</button>
-        </>}
-        {admin&&<>
-          <span style={{opacity:.7}}>Final decision:</span>
-          <button className="btn" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'accepted',note})}>Accept</button>
-          <button className="btn red" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'rejected',note})}>Reject</button>
-          {a.status!=='pending'&&<button className="btn ghost" onClick={()=>rpc('decide_application',{app_id:a.id,decision:'pending',note})}>Reopen</button>}
-        </>}
-        <span className="msg">{msg}</span>
-      </div>
-    </div>}
-
-    {lightbox&&<div className="lightbox" role="dialog" aria-modal="true" aria-label={lightbox.name} onClick={()=>setLightbox(null)}>
-      <img src={lightbox.url} alt={lightbox.name} onClick={e=>e.stopPropagation()}/>
-      <div className="lightbox-bar" onClick={e=>e.stopPropagation()}>
-        <span>{lightbox.name}</span>
-        <a className="btn ghost" style={{color:'#EDE6D6',borderColor:'#EDE6D6'}} href={lightbox.url} target="_blank" rel="noopener noreferrer">Open original</a>
-        <a className="btn ghost" style={{color:'#EDE6D6',borderColor:'#EDE6D6'}} href={lightbox.url} download={lightbox.name} rel="noopener noreferrer">Download</a>
-        <button type="button" className="btn" onClick={()=>setLightbox(null)}>Close</button>
-      </div>
-    </div>}
-  </div>;
-}
-
-function Applications({me}:any){
-  const [rows,setRows]=useState<any[]>([]);
-  const [q,setQ]=useState('');
-  const [st,setSt]=useState('pending');
-  const [tr,setTr]=useState('all');
-  const [err,setErr]=useState('');
-  const load=useCallback(async()=>{
-    const {data,error}=await sb.from('applications').select('*').order('created_at',{ascending:false});
-    setErr(error?error.message:'');
-    setRows(data||[]);
-  },[]);
-  useEffect(()=>{load()},[load]);
-  const headTrack=/security/i.test(String(me.department||''))?'Security':/volunteer/i.test(String(me.department||''))?'Volunteers':'';
-  const deptRows=me.role==='head'?rows.filter(r=>r.track===headTrack):rows;
-  const shown=deptRows.filter(r=>(st==='all'||r.status===st)&&(tr==='all'||r.track===tr)&&(!q||JSON.stringify(r).toLowerCase().includes(q.toLowerCase())));
-  const counts={
-    total:deptRows.length,
-    pending:deptRows.filter(r=>r.status==='pending').length,
-    accepted:deptRows.filter(r=>r.status==='accepted').length,
-    rejected:deptRows.filter(r=>r.status==='rejected').length
-  };
-  return <div className="admin-page">
-    <div className="admin-page-heading">
-      <div>
-        <p className="admin-kicker">{me.role==='admin'?'OPERATIONS / EXECUTIVE REVIEW':'DEPARTMENT REVIEW / RECOMMENDATIONS'}</p>
-        <h1>Applications</h1>
-        <p>{me.role==='admin'?'Review department recommendations and record the final Executive Board decision.':'Review applications and recommend acceptance or rejection. The Secretariat and IT make the final decision.'}</p>
-      </div>
-      <button className="btn ghost" onClick={load}>Refresh applications</button>
-    </div>
-    <div className="admin-stat-grid">
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Total submissions</span><FileText className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{counts.total}</strong></div>
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Pending review</span><ClipboardList className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{counts.pending}</strong></div>
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Accepted</span><Users className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{counts.accepted}</strong></div>
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Rejected</span><History className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{counts.rejected}</strong></div>
-    </div>
-    <div className="admin-filter-panel">
-      <div className="admin-filter-heading"><span className="admin-kicker">APPLICATION DIRECTORY</span><span className="admin-filter-count">Showing {shown.length} of {deptRows.length}</span></div>
-      <div className={'admin-filter-grid'+(me.role==='admin'?' admin-filter-grid-wide':'')}>
-        <input placeholder="Search name, school, email..." value={q} onChange={e=>setQ(e.target.value)} aria-label="Search applications"/>
-        <select value={st} onChange={e=>setSt(e.target.value)} aria-label="Status">
-          <option value="pending">Pending applications</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="all">All statuses</option>
-        </select>
-        {me.role==='admin'&&<select value={tr} onChange={e=>setTr(e.target.value)} aria-label="Department">
-          <option value="all">All departments</option><option>Volunteers</option><option>Security</option>
-        </select>}
-      </div>
-      <div className="admin-toolbar-actions"><button className="btn ghost" onClick={load}>Refresh</button>{err&&<span className="err" role="alert">{err}</span>}</div>
-    </div>
-    {shown.length?shown.map(a=><AppCard key={a.id+a.status+String(a.recommendation)} a={a} me={me} reload={load}/>):<div className="admin-empty-state"><FileText size={25} strokeWidth={1.6}/><strong>{err?'Applications could not be loaded':'No applications found'}</strong><p>{err?'Check the database connection and access permissions, then refresh.':me.role==='head'&&!headTrack?`No application intake track is open for ${me.department||'your department'} yet.`:'Applications that match your current filters will appear here.'}</p></div>}
-  </div>;
-}
+// Application dossier review is modularized in ./components/ApplicationsReviewView.tsx
 function Crud({table,cols,order='created_at',log,pre}:any){
   const [rows,setRows]=useState<any[]>([]);const [q,setQ]=useState('');const [neu,setNeu]=useState<any>({});const [msg,setMsg]=useState('');
   const load=useCallback(async()=>{const {data,error}=await sb.from(table).select('*').order(order,{ascending:order!=='created_at'});if(error)setMsg(error.message);setRows(data||[])},[table,order]);
@@ -1499,449 +1276,26 @@ function Crud({table,cols,order='created_at',log,pre}:any){
     </tbody></table></div></div>;
 }
 
-interface RosterDraft{
-  id:string|null;
-  full_name:string;
-  email:string;
-  phone:string;
-  department:string;
-  position:string;
-  account_role:RosterAccountRole;
-  active:boolean;
-  notes:string;
-}
-
-const EMPTY_ROSTER_DRAFT:RosterDraft={
-  id:null,
-  full_name:'',
-  email:'',
-  phone:'',
-  department:'',
-  position:'Member',
-  account_role:'member',
-  active:true,
-  notes:''
-};
-
 function Roster({log}:any){
-  const [rows,setRows]=useState<any[]>([]);
-  const [profiles,setProfiles]=useState<any[]>([]);
-  const [loading,setLoading]=useState(true);
-  const [q,setQ]=useState('');
-  const [deptFilter,setDeptFilter]=useState('ALL');
-  const [regFilter,setRegFilter]=useState<'all'|'registered'|'pending'|'incomplete'>('all');
-  const [activeFilter,setActiveFilter]=useState<'all'|'active'|'inactive'>('all');
-  const [msg,setMsg]=useState('');
-  const [err,setErr]=useState('');
-  const [busy,setBusy]=useState(false);
-  const [editing,setEditing]=useState<RosterDraft|null>(null);
-
-  const load=useCallback(async()=>{
-    setLoading(true);
-    const [rRes,pRes]=await Promise.all([
-      sb.from('roster').select('*').order('full_name',{ascending:true}),
-      sb.from('profiles').select('id,roster_id,email,role,active,full_name,department,position')
-    ]);
-    if(rRes.error)setErr(rRes.error.message||'Could not load roster.');
-    else setErr('');
-    setRows(rRes.data||[]);
-    setProfiles(pRes.data||[]);
-    setLoading(false);
-  },[]);
-
-  useEffect(()=>{void load()},[load]);
-
-  const departments=useMemo(()=>{
-    const set=new Set<string>(PDF_DEPARTMENTS);
-    for(const r of rows){
-      if(typeof r.department==='string'&&r.department.trim())set.add(r.department.trim());
-    }
-    return Array.from(set).sort((a,b)=>a.localeCompare(b));
-  },[rows]);
-
-  const stats=useMemo(()=>{
-    let registered=0,pending=0,incomplete=0,inactive=0;
-    for(const r of rows){
-      if(!isRosterEntryActive(r))inactive++;
-      const status=getRosterRegistrationStatus(r,profiles);
-      if(status==='registered')registered++;
-      else if(status==='incomplete')incomplete++;
-      else pending++;
-    }
-    return {total:rows.length,registered,pending,incomplete,inactive};
-  },[rows,profiles]);
-
-  const shown=useMemo(()=>{
-    const needle=q.trim().toLowerCase();
-    return rows.filter(r=>{
-      if(deptFilter!=='ALL'&&(r.department||'').trim()!==deptFilter)return false;
-      const regStatus=getRosterRegistrationStatus(r,profiles);
-      if(regFilter!=='all'&&regStatus!==regFilter)return false;
-      const activeFlag=isRosterEntryActive(r);
-      if(activeFilter==='active'&&!activeFlag)return false;
-      if(activeFilter==='inactive'&&activeFlag)return false;
-      if(!needle)return true;
-      return [r.full_name,r.email,r.phone,r.department,r.position,r.account_role]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(needle);
-    });
-  },[rows,profiles,deptFilter,regFilter,activeFilter,q]);
-
-  const openAdd=()=>{
-    setErr('');
-    setMsg('');
-    setEditing({...EMPTY_ROSTER_DRAFT});
-  };
-
-  const openEdit=(row:any)=>{
-    setErr('');
-    setMsg('');
-    const resolvedRole=resolveRosterAccountRole(row.department,row.position,row.account_role);
-    setEditing({
-      id:row.id,
-      full_name:row.full_name||'',
-      email:row.email||'',
-      phone:row.phone||'',
-      department:row.department||'',
-      position:row.position||'Member',
-      account_role:resolvedRole,
-      active:isRosterEntryActive(row),
-      notes:row.notes||''
-    });
-  };
-
-  const saveDraft=async(e:any)=>{
-    e.preventDefault();
-    if(!editing)return;
-    const cleanName=editing.full_name.trim();
-    const cleanEmail=normalizeNullableEmail(editing.email);
-    if(!cleanName){
-      setErr('Full name is required.');
-      return;
-    }
-    if(!isValidNullableEmail(cleanEmail)){
-      setErr('Enter a valid email address, or leave blank only for an incomplete roster entry.');
-      return;
-    }
-
-    setBusy(true);
-    setErr('');
-    setMsg('');
-    try{
-      const payload:any={
-        full_name:cleanName,
-        email:cleanEmail,
-        phone:editing.phone.trim(),
-        department:editing.department.trim(),
-        position:editing.position.trim()||'Member',
-        account_role:editing.account_role,
-        active:editing.active,
-        notes:editing.notes.trim()
-      };
-
-      if(editing.id){
-        let {error}=await sb.from('roster').update(payload).eq('id',editing.id);
-        if(error&&/column.*does not exist|null value in column "email"/i.test(error.message||'')){
-          const legacyPayload:any={
-            full_name:cleanName,
-            phone:payload.phone,
-            department:payload.department,
-            position:payload.position,
-            notes:payload.notes
-          };
-          if(cleanEmail)legacyPayload.email=cleanEmail;
-          const retry=await sb.from('roster').update(legacyPayload).eq('id',editing.id);
-          error=retry.error;
-        }
-        if(error){
-          setErr(error.message||'Could not update roster entry.');
-          return;
-        }
-        log('roster.update',{id:editing.id,full_name:cleanName,email:cleanEmail,active:editing.active});
-        setMsg(`Updated ${cleanName}.`);
-      }else{
-        let {error}=await sb.from('roster').insert(payload);
-        if(error&&/column.*does not exist/i.test(error.message||'')){
-          if(!cleanEmail){
-            setErr('Adding an entry without an email requires applying migration 006_full_pdf_roster_import.sql in Supabase first.');
-            return;
-          }
-          const retry=await sb.from('roster').insert({
-            full_name:cleanName,
-            email:cleanEmail,
-            phone:payload.phone,
-            department:payload.department,
-            position:payload.position,
-            notes:payload.notes
-          });
-          error=retry.error;
-        }
-        if(error){
-          setErr(error.message||'Could not add roster entry.');
-          return;
-        }
-        log('roster.create',{full_name:cleanName,email:cleanEmail});
-        setMsg(`Added ${cleanName} to the roster.`);
-      }
-
-      setEditing(null);
-      await load();
-    }finally{
-      setBusy(false);
-    }
-  };
-
-  const toggleRosterActive=async(row:any)=>{
-    const current=isRosterEntryActive(row);
-    const next=!current;
-    if(!next&&!confirm(`Deactivate ${row.full_name} on the roster? Inactive entries cannot sign up for new accounts.`))return;
-    setBusy(true);
-    setErr('');
-    setMsg('');
-    try{
-      const {error}=await sb.from('roster').update({active:next}).eq('id',row.id);
-      if(error){
-        if(/column.*active.*does not exist/i.test(error.message||'')){
-          setErr('Roster active/inactive status requires running migration 006_full_pdf_roster_import.sql in Supabase SQL Editor.');
-        }else{
-          setErr(error.message||'Could not change active status.');
-        }
-        return;
-      }
-      log(next?'roster.reactivate':'roster.deactivate',{id:row.id,full_name:row.full_name,email:row.email});
-      setMsg(`${row.full_name} marked ${next?'active':'inactive'}.`);
-      await load();
-    }finally{
-      setBusy(false);
-    }
-  };
-
-  const syncPdfRoster=async()=>{
-    setErr('');
-    setMsg('');
-    const plan=planPdfRosterSync(rows,OFFICIAL_PDF_ROSTER);
-    const missingTotal=plan.toInsertWithEmail.length+plan.toInsertMissingEmail.length;
-    if(missingTotal===0){
-      setMsg(`All ${OFFICIAL_PDF_ROSTER.length} official PDF roster entries are already present (${plan.alreadyPresentCount} matched).`);
-      return;
-    }
-    if(!confirm(`Sync missing entries from the official PDF roster?\n\n• New valid-email entries to add: ${plan.toInsertWithEmail.length}\n• Incomplete entries (missing email in PDF) to add: ${plan.toInsertMissingEmail.length}\n• Already in roster (kept untouched): ${plan.alreadyPresentCount}`))return;
-
-    setBusy(true);
-    try{
-      let inserted=0;
-      let skippedIncomplete=0;
-      if(plan.toInsertWithEmail.length>0){
-        const payload=plan.toInsertWithEmail.map(e=>({
-          full_name:e.full_name,
-          email:e.email,
-          phone:e.phone,
-          department:e.department,
-          position:e.position,
-          account_role:e.intended_role,
-          active:true,
-          notes:`Imported from official EB roster PDF (Page ${e.page})`
-        }));
-        let {error}=await sb.from('roster').insert(payload);
-        if(error&&/column.*does not exist/i.test(error.message||'')){
-          const retry=await sb.from('roster').insert(plan.toInsertWithEmail.map(e=>({
-            full_name:e.full_name,
-            email:e.email,
-            phone:e.phone,
-            department:e.department,
-            position:e.position,
-            notes:`Imported from official EB roster PDF (Page ${e.page})`
-          })));
-          error=retry.error;
-        }
-        if(error){
-          setErr(error.message||'Could not import PDF valid-email entries.');
-          return;
-        }
-        inserted+=plan.toInsertWithEmail.length;
-      }
-
-      if(plan.toInsertMissingEmail.length>0){
-        const incompletePayload=plan.toInsertMissingEmail.map(e=>({
-          full_name:e.full_name,
-          email:null,
-          phone:e.phone,
-          department:e.department,
-          position:e.position,
-          account_role:e.intended_role,
-          active:true,
-          notes:`Incomplete entry from PDF (Page ${e.page}): missing email address`
-        }));
-        const {error}=await sb.from('roster').insert(incompletePayload);
-        if(error){
-          skippedIncomplete=plan.toInsertMissingEmail.length;
-        }else{
-          inserted+=plan.toInsertMissingEmail.length;
-        }
-      }
-
-      log('roster.pdf_sync',{inserted,skippedIncomplete,alreadyPresent:plan.alreadyPresentCount});
-      setMsg(
-        skippedIncomplete>0
-          ? `Added ${inserted} valid-email entries. ${skippedIncomplete} missing-email entries require migration 006_full_pdf_roster_import.sql in Supabase SQL Editor.`
-          : `Synced ${inserted} official PDF roster entries (${plan.alreadyPresentCount} already present were preserved).`
-      );
-      await load();
-    }finally{
-      setBusy(false);
-    }
-  };
-
-  const importCsv=async(f:File)=>{
-    const parsed=parseCSV(await f.text());
-    const head=parsed[0]?.map(h=>h.trim().toLowerCase())||[];
-    const ix=(n:string)=>head.indexOf(n);
-    if(ix('email')<0||ix('full_name')<0){setErr('CSV needs columns: full_name, email, phone, department, position');return}
+  const [tick,setTick]=useState(0);const [msg,setMsg]=useState('');
+  const importCsv=async(f:File)=>{const rows=parseCSV(await f.text());const head=rows[0].map(h=>h.trim().toLowerCase());const ix=(n:string)=>head.indexOf(n);
+    if(ix('email')<0||ix('full_name')<0){setMsg('CSV needs columns: full_name, email, phone, department, position');return}
     const seen=new Set<string>();const bad:string[]=[];const out:any[]=[];
-    parsed.slice(1).forEach((r,i)=>{
-      const em=(r[ix('email')]||'').trim().toLowerCase();
-      const name=(r[ix('full_name')]||'').trim();
-      if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){bad.push('row '+(i+2));return}
-      if(seen.has(em)){bad.push('duplicate row '+(i+2));return}
-      seen.add(em);
-      const dept=ix('department')>=0?(r[ix('department')]||'').trim():'';
-      const pos=ix('position')>=0?((r[ix('position')]||'').trim()||'Member'):'Member';
-      out.push({full_name:name,email:em,phone:ix('phone')>=0?(r[ix('phone')]||'').trim():'',department:dept,position:pos,account_role:resolveRosterAccountRole(dept,pos),active:true});
-    });
-    if(!out.length){setErr('Nothing valid to import. Skipped: '+bad.join(', '));return}
+    rows.slice(1).forEach((r,i)=>{const email=(r[ix('email')]||'').trim().toLowerCase();const name=(r[ix('full_name')]||'').trim();
+      if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){bad.push('row '+(i+2));return}if(seen.has(email)){bad.push('duplicate row '+(i+2));return}seen.add(email);
+      out.push({full_name:name,email,phone:ix('phone')>=0?(r[ix('phone')]||'').trim():'',department:ix('department')>=0?(r[ix('department')]||'').trim():'',position:ix('position')>=0?((r[ix('position')]||'').trim()||'Member'):'Member'})});
+    if(!out.length){setMsg('Nothing valid to import. Skipped: '+bad.join(', '));return}
     if(!confirm(`Import ${out.length} people? ${bad.length} rows will be skipped (missing or invalid email, or duplicates).`))return;
-    let {error}=await sb.from('roster').upsert(out,{onConflict:'email'});
-    if(error&&/column.*does not exist/i.test(error.message||'')){
-      const retry=await sb.from('roster').upsert(out.map(({full_name,email:em,phone,department,position})=>({full_name,email:em,phone,department,position})),{onConflict:'email'});
-      error=retry.error;
-    }
-    if(error){setErr(error.message);return}
-    setMsg(`Imported ${out.length}. Skipped: ${bad.join(', ')||'none'}`);
-    log('import roster',{count:out.length,skipped:bad.length});
-    await load();
-  };
-
-  const exportCsv=()=>{
-    const h=['full_name','email','phone','department','position','account_role','active'];
-    const csv=[h.join(',')].concat(shown.map((r:any)=>h.map(k=>'"'+String(r[k]??(k==='active'?isRosterEntryActive(r):'')).replace(/"/g,'""')+'"').join(','))).join('\n');
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='veritas-roster.csv';a.click();log('export roster');
-  };
-
-  return <div style={{display:'flex',flexDirection:'column',gap:16}}>
-    <div className="admin-stat-grid">
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Total Roster</span><Users className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.total}</strong></div>
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Registered Accounts</span><UserRound className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.registered}</strong></div>
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Pending Sign-Up</span><ClipboardList className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.pending}</strong></div>
-      <div className="admin-stat-card"><div className="admin-stat-top"><span className="admin-stat-label">Missing Email / Inactive</span><History className="admin-stat-icon" size={17}/></div><strong className="admin-stat-value">{stats.incomplete} / {stats.inactive}</strong></div>
-    </div>
-
-    <div className="admin-filter-panel">
-      <div className="admin-filter-heading"><span className="admin-kicker">ROSTER DIRECTORY &amp; CONTROLS</span><span className="admin-filter-count">Showing {shown.length} of {rows.length}</span></div>
-      <div className="admin-filter-grid admin-filter-grid-wide" style={{gridTemplateColumns:'minmax(210px,1.4fr) repeat(3,minmax(135px,1fr))'}}>
-        <input type="search" placeholder="Search name, email, department, position..." value={q} onChange={e=>setQ(e.target.value)} aria-label="Search roster"/>
-        <select value={deptFilter} onChange={e=>setDeptFilter(e.target.value)} aria-label="Filter by department">
-          <option value="ALL">All departments</option>
-          {departments.map(d=><option key={d} value={d}>{d}</option>)}
-        </select>
-        <select value={regFilter} onChange={e=>setRegFilter(e.target.value as any)} aria-label="Filter by registration status">
-          <option value="all">All registration statuses</option>
-          <option value="registered">Registered</option>
-          <option value="pending">Pending sign-up</option>
-          <option value="incomplete">Missing email</option>
-        </select>
-        <select value={activeFilter} onChange={e=>setActiveFilter(e.target.value as any)} aria-label="Filter by active status">
-          <option value="all">All active statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-      <div className="admin-toolbar-actions">
-        <button type="button" className="btn" onClick={openAdd} disabled={busy}>+ Add person</button>
-        <button type="button" className="btn ghost" onClick={syncPdfRoster} disabled={busy}>Sync PDF Roster</button>
-        <label className="btn ghost" style={{cursor:'pointer'}}>Import CSV<input type="file" accept=".csv" hidden onChange={e=>e.target.files?.[0]&&importCsv(e.target.files[0])}/></label>
-        <button type="button" className="btn ghost" onClick={exportCsv} disabled={!shown.length}>Export CSV</button>
-        <button type="button" className="btn ghost" onClick={()=>void load()} disabled={loading}>Refresh</button>
-      </div>
-      {msg&&<div className="msg" role="status" style={{marginTop:10,fontWeight:600}}>{msg}</div>}
-      {err&&<div className="err" role="alert" style={{marginTop:10,padding:'8px 12px'}}>{err}</div>}
-    </div>
-
-    {editing&&<form className="admin-panel" onSubmit={saveDraft} aria-label={editing.id?'Edit roster entry':'Add roster entry'}>
-      <p className="admin-kicker">{editing.id?'EDIT ROSTER ENTRY':'ADD TEAM MEMBER TO ROSTER'}</p>
-      <div className="f-grid" style={{marginTop:10}}>
-        <div className="field"><label htmlFor="r-edit-name">Full Name<span className="req">*</span></label><input id="r-edit-name" required value={editing.full_name} onChange={e=>setEditing({...editing,full_name:e.target.value})}/></div>
-        <div className="field"><label htmlFor="r-edit-email">Email (leave blank only if unknown)</label><input id="r-edit-email" type="email" placeholder="name@example.com" value={editing.email} onChange={e=>setEditing({...editing,email:e.target.value})}/></div>
-        <div className="field"><label htmlFor="r-edit-dept">Department</label><input id="r-edit-dept" list="veritas-dept-list" value={editing.department} onChange={e=>{const d=e.target.value;setEditing({...editing,department:d,account_role:resolveRosterAccountRole(d,editing.position)})}}/>
-          <datalist id="veritas-dept-list">{PDF_DEPARTMENTS.map(d=><option key={d} value={d}/>)}</datalist>
-        </div>
-        <div className="field"><label htmlFor="r-edit-pos">Position</label><input id="r-edit-pos" value={editing.position} onChange={e=>{const p=e.target.value;setEditing({...editing,position:p,account_role:resolveRosterAccountRole(editing.department,p)})}}/></div>
-        <div className="field"><label htmlFor="r-edit-phone">Phone</label><input id="r-edit-phone" value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})}/></div>
-        <div className="field"><label htmlFor="r-edit-role">Account Role</label>
-          <select id="r-edit-role" value={editing.account_role} onChange={e=>setEditing({...editing,account_role:e.target.value as RosterAccountRole})}>
-            <option value="member">Member</option>
-            <option value="head">Department Head / Co-head</option>
-            <option value="advisor">Senior Advisor (no admin)</option>
-            <option value="admin">Admin (Secretariat / IT)</option>
-          </select>
-        </div>
-      </div>
-      <div className="field"><label htmlFor="r-edit-notes">Notes</label><input id="r-edit-notes" value={editing.notes} onChange={e=>setEditing({...editing,notes:e.target.value})}/></div>
-      <label style={{display:'inline-flex',alignItems:'center',gap:8,fontWeight:600}}><input type="checkbox" checked={editing.active} onChange={e=>setEditing({...editing,active:e.target.checked})}/><span>Active on approved roster (can sign up)</span></label>
-      <div className="toolbar" style={{marginTop:14}}>
-        <button type="submit" className="btn" disabled={busy}>{busy?'Saving...':'Save entry'}</button>
-        <button type="button" className="btn ghost" onClick={()=>setEditing(null)} disabled={busy}>Cancel</button>
-      </div>
-    </form>}
-
-    <div className="tw">
-      {loading?<p style={{padding:18}}>Loading roster...</p>:shown.length===0?<div className="admin-empty-state" style={{border:0}}><Users size={22}/><strong>No roster entries match your filters</strong><p>Adjust your search or click Sync PDF Roster to load all 37 official members.</p></div>:<table>
-        <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Position</th><th>Account Registration</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
-        <tbody>
-          {shown.map(r=>{
-            const regStatus=getRosterRegistrationStatus(r,profiles);
-            const activeFlag=isRosterEntryActive(r);
-            const linkedProfile=findLinkedProfileForRoster(r,profiles);
-            const effectiveRole=linkedProfile?.role||resolveRosterAccountRole(r.department,r.position,r.account_role);
-            return <tr key={r.id}>
-              <td><strong>{r.full_name}</strong>{r.phone?<div style={{fontSize:11,color:'#756B64'}}>{r.phone}</div>:null}</td>
-              <td>{r.email?<span>{r.email}</span>:<span className="badge" style={{marginLeft:0,background:'#F7ECD5',borderColor:'#B27B16',color:'#6E4506'}}>Missing email</span>}</td>
-              <td>{r.department||'—'}</td>
-              <td><div>{r.position||'Member'}</div><span className={effectiveRole==='admin'?'badge g':'badge'} style={{marginLeft:0,marginTop:3}}>{effectiveRole}</span></td>
-              <td>
-                {regStatus==='registered'
-                  ?<span className="badge g" style={{marginLeft:0}}>Registered</span>
-                  :regStatus==='incomplete'
-                    ?<span className="badge" style={{marginLeft:0,background:'#F7ECD5',borderColor:'#B27B16',color:'#6E4506'}}>Incomplete</span>
-                    :<span className="badge" style={{marginLeft:0}}>Pending</span>}
-              </td>
-              <td>
-                <span className={activeFlag?'badge g':'badge r'} style={{marginLeft:0}}>{activeFlag?'Active':'Inactive'}</span>
-              </td>
-              <td style={{textAlign:'right',whiteSpace:'nowrap'}}>
-                <div style={{display:'inline-flex',gap:6}}>
-                  <button type="button" className="btn ghost" style={{padding:'5px 10px',fontSize:12}} onClick={()=>openEdit(r)} disabled={busy}>Edit</button>
-                  <button type="button" className={activeFlag?'btn red':'btn ghost'} style={{padding:'5px 10px',fontSize:12}} onClick={()=>void toggleRosterActive(r)} disabled={busy}>{activeFlag?'Deactivate':'Reactivate'}</button>
-                </div>
-              </td>
-            </tr>;
-          })}
-        </tbody>
-      </table>}
-    </div>
-  </div>;
+    const {error}=await sb.from('roster').upsert(out,{onConflict:'email'});setMsg(error?error.message:`Imported ${out.length}. Skipped: ${bad.join(', ')||'none'}`);
+    if(!error){log('import roster',{count:out.length,skipped:bad.length});setTick(tick+1)}};
+  const exportCsv=async()=>{const {data}=await sb.from('roster').select('full_name,email,phone,department,position');const h=['full_name','email','phone','department','position'];
+    const csv=[h.join(',')].concat((data||[]).map((r:any)=>h.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(','))).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='roster.csv';a.click();log('export roster')};
+  return <div><h2>Roster</h2><p>Only emails on this list can create an account. Roles are set automatically: department <b style={{fontSize:'1rem',display:'inline'}}>Secretaries</b> or <b style={{fontSize:'1rem',display:'inline'}}>IT</b> gets the admin panel; anyone with "head" in their position (for example "Head" or "Co-head") can review applications for their own department (Volunteers or Security). Staff accounts start inactive: tick Active in Accounts to approve them.</p>
+    <div className="toolbar"><label className="btn ghost">Import CSV<input type="file" accept=".csv" hidden onChange={e=>e.target.files?.[0]&&importCsv(e.target.files[0])}/></label><button className="btn ghost" onClick={exportCsv}>Export CSV</button><span className="msg">{msg}</span></div>
+    <Crud key={tick} table="roster" order="full_name" log={log} cols={[{k:'full_name',l:'Name'},{k:'email',l:'Email'},{k:'phone',l:'Phone'},{k:'department',l:'Department'},{k:'position',l:'Position'}]}/></div>;
 }
 
-function Accounts({log}:any){
-  const [rows,setRows]=useState<any[]>([]);const [msg,setMsg]=useState('');const [err,setErr]=useState('');
-  const load=useCallback(async()=>{const {data,error}=await sb.from('profiles').select('*').order('active').order('created_at');if(error)setErr(error.message);else setErr('');setRows(data||[])},[]);useEffect(()=>{load()},[load]);
-  const upd=async(id:string,patch:any)=>{const {error}=await sb.from('profiles').update(patch).eq('id',id);if(error){setErr(error.message);setMsg('')}else{setErr('');setMsg('Saved');log('update account',{id,...patch});load()}};
-  return <div><p>People who have signed up and activated accounts. Manage role assignments (Member, Head, Advisor, Admin) and portal access here.</p>{msg&&<span className="msg">{msg}</span>}{err&&<span className="err">{err}</span>}
-    <div className="tw"><table><thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Department</th><th>Role</th><th>Active</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.full_name}</td><td>{r.email||'—'}</td><td>{r.position}</td><td>{r.department}</td>
-      <td><select value={r.role} onChange={e=>upd(r.id,{role:e.target.value})} aria-label={`Role for ${r.full_name}`}><option value="member">member</option><option value="head">head</option><option value="advisor">advisor</option><option value="admin">admin</option></select></td>
-      <td><input type="checkbox" checked={r.active} onChange={e=>upd(r.id,{active:e.target.checked})} aria-label={`Active for ${r.full_name}`}/></td></tr>)}</tbody></table></div></div>;
-}
 
 const DEFAULTS:any={hero_tagline:'Where diplomacy meets truth.',about_text:'',committees:{tba:true,items:[]},schedule:{tba:true,items:[]},faq:{tba:true,items:[]},register:{tba:true,link:''}};
 function Content({log}:any){
@@ -1992,51 +1346,161 @@ function Overview(){
     </div>
   </div>;
 }
-function Admin({me}:any){
+const TAB_ICON_MAP:Record<PortalTabId,any>={
+  overview:LayoutDashboard,
+  applications:ClipboardList,
+  applications_management:SlidersHorizontal,
+  hr_invites:UserPlus,
+  email_center:Mail,
+  announcements:Megaphone,
+  qr_attendance:QrCode,
+  qr_scanner:ScanLine,
+  my_pass:QrCode,
+  operations:Briefcase,
+  departments:Building2,
+  roster:Users,
+  accounts:UserRound,
+  support_access:ShieldCheck,
+  audit_log:History,
+  committees_management:Landmark,
+  conference_cms:CalendarDays,
+  team_cards:Users
+};
+
+const GROUP_ORDER=['Operations','Applications & HR','Communications','QR & Floor','Team & Governance','Website CMS'] as const;
+
+function resolvePreferredTab(path:string,tabs:{id:PortalTabId}[]):PortalTabId{
+  const norm=normalizeAuthPath(path);
+  const has=(id:PortalTabId)=>tabs.some(t=>t.id===id);
+  if(norm==='/pass'&&has('my_pass'))return 'my_pass';
+  if(norm==='/scanner'&&has('qr_scanner'))return 'qr_scanner';
+  if(norm==='/staff'){
+    if(has('operations'))return 'operations';
+    if(has('my_pass'))return 'my_pass';
+  }
+  return tabs[0]?.id||'my_pass';
+}
+
+function Admin({me,path}:any){
   const admin=me.role==='admin';
-  const tabs=admin?['Overview','Applications','Committees Management','Applications Management','Roster','Accounts','Site content','Team cards','Announcements','Audit log']:['Applications'];
-  const [tab,setTab]=useState(tabs[0]);
-  const log=(action:string,details:any={})=>sb.from('audit_log').insert({user_id:me.id,action,details});
-  const navGroups=admin?[
-    {title:'Operations',items:[{label:'Overview',icon:LayoutDashboard},{label:'Applications',icon:ClipboardList}]},
-    {title:'Team management',items:[{label:'Roster',icon:Users},{label:'Accounts',icon:UserRound},{label:'Announcements',icon:Megaphone},{label:'Audit log',icon:History}]},
-    {title:'Website',items:[{label:'Committees Management',icon:Landmark},{label:'Applications Management',icon:SlidersHorizontal},{label:'Site content',icon:Globe},{label:'Team cards',icon:Users}]}
-  ]:[{title:'Department review',items:[{label:'Applications',icon:ClipboardList}]}];
+  const [supportAuthorized,setSupportAuthorized]=useState(false);
+  const [activeSupportSession,setActiveSupportSession]=useState<SupportAccessSession|null>(null);
+
+  useEffect(()=>{
+    if(!admin){
+      setSupportAuthorized(false);
+      setActiveSupportSession(null);
+      return;
+    }
+    let mounted=true;
+    (async()=>{
+      try{
+        const {data,error}=await sb.rpc('get_support_access_status');
+        if(!mounted||error||!data)return;
+        setSupportAuthorized(Boolean(data.authorized));
+        if(data.active_session&&data.active_session.status==='active'){
+          setActiveSupportSession(data.active_session as SupportAccessSession);
+        }
+      }catch{
+        // Support access RPC may not exist on unmigrated DBs; keep disabled cleanly
+      }
+    })();
+    return()=>{mounted=false};
+  },[admin,me.id]);
+
+  const authorizedTabs=useMemo(
+    ()=>getAuthorizedManagementTabs(me,{supportAuthorized}),
+    [me,supportAuthorized]
+  );
+  const [tab,setTab]=useState<PortalTabId>(()=>resolvePreferredTab(path,authorizedTabs));
+
+  useEffect(()=>{
+    if(!authorizedTabs.some(t=>t.id===tab)){
+      setTab(resolvePreferredTab(path,authorizedTabs));
+    }
+  },[authorizedTabs,tab,path]);
+
+  useEffect(()=>{
+    const norm=normalizeAuthPath(path);
+    if(norm==='/pass'||norm==='/scanner'||norm==='/staff'){
+      setTab(resolvePreferredTab(norm,authorizedTabs));
+    }
+  },[path,authorizedTabs]);
+
+  const log=useCallback((action:string,details:any={})=>sb.from('audit_log').insert({user_id:me.id,action,details}),[me.id]);
+
+  if(normalizeAuthPath(path)==='/scanner'&&!isQrScannerAuthorizedProfile(me)){
+    return <div className="box">
+      <h2>Access denied</h2>
+      <p>Live QR scanning is restricted to Secretariat / IT Administrators and Security operators.</p>
+      <div className="toolbar">
+        <a className="btn" href="/pass">My QR Pass</a>
+        <a className="btn ghost" href="/account">My account</a>
+      </div>
+    </div>;
+  }
+
+  if(activeSupportSession){
+    return <SupportSessionOverlay
+      sb={sb}
+      session={activeSupportSession}
+      operatorName={me.full_name||me.email||'Admin'}
+      onSessionEnded={()=>setActiveSupportSession(null)}
+    />;
+  }
+
+  const navGroups=GROUP_ORDER.map(title=>({
+    title,
+    items:authorizedTabs.filter(t=>t.group===title)
+  })).filter(g=>g.items.length>0);
+
+  const activeTabDef=authorizedTabs.find(t=>t.id===tab);
   const initials=(me.full_name||'VM').split(' ').filter(Boolean).slice(0,2).map((part:string)=>part[0]).join('').toUpperCase();
+  const roleBadgeLabel=admin?'ADMIN':me.role==='head'?(me.eb_rank==='co_head'?'CO-HEAD':'DEPARTMENT HEAD'):'STAFF MEMBER';
+  const canIssueHrInvite=authorizedTabs.some(t=>t.id==='hr_invites');
+
   return <div className="admin-layout">
     <aside className="admin-sidebar">
-      <div className="admin-brand"><div className="admin-wordmark">VERITAS <span>MUN</span></div><div className="admin-brand-sub">ADMINISTRATION PORTAL</div></div>
+      <div className="admin-brand"><div className="admin-wordmark">VERITAS <span>MUN</span></div><div className="admin-brand-sub">{admin?'ADMINISTRATION PORTAL':'MANAGEMENT WORKSPACE'}</div></div>
       <div className="admin-nav-scroll">
         {navGroups.map(group=><div className="admin-nav-group" key={group.title}>
           <div className="admin-nav-group-title">{group.title}</div>
-          {group.items.map(item=>{const Icon=item.icon;return <button key={item.label} type="button" className={'admin-nav-item'+(tab===item.label?' active':'')} onClick={()=>setTab(item.label)} aria-current={tab===item.label?'page':undefined}><Icon size={17} strokeWidth={1.8}/><span>{item.label}</span></button>})}
+          {group.items.map(item=>{const Icon=TAB_ICON_MAP[item.id]||LayoutDashboard;return <button key={item.id} type="button" className={'admin-nav-item'+(tab===item.id?' active':'')} onClick={()=>setTab(item.id)} aria-current={tab===item.id?'page':undefined}><Icon size={17} strokeWidth={1.8}/><span>{item.label}</span></button>})}
         </div>)}
       </div>
       <div className="admin-sidebar-footer">
-        <div className="admin-profile"><div className="admin-avatar">{initials}</div><div className="admin-profile-copy"><strong>{me.full_name||'Team member'}</strong><span>{me.position||me.role}</span></div></div>
+        <div className="admin-profile"><div className="admin-avatar">{initials}</div><div className="admin-profile-copy"><strong>{me.full_name||'Team member'}</strong><span>{me.position||me.role}{me.department?` · ${me.department}`:''}</span></div></div>
         <a className="admin-site-link" href="/"><span><Globe size={15}/>Conference website</span><ExternalLink size={14}/></a>
       </div>
     </aside>
     <div className="admin-main-column">
       <header className="admin-topbar">
-        <div className="admin-breadcrumb"><span>VERITAS MUN</span><ChevronRight size={14}/><strong>{tab}</strong></div>
+        <div className="admin-breadcrumb"><span>VERITAS MUN</span><ChevronRight size={14}/><strong>{activeTabDef?.label||'Workspace'}</strong></div>
         <div className="admin-top-actions">
-          <span className="admin-role-pill"><span className="admin-role-dot"/>{admin?'ADMIN':'DEPARTMENT HEAD'}</span>
+          <span className="admin-role-pill"><span className="admin-role-dot"/>{roleBadgeLabel}</span>
           <a className="admin-top-link" href="/account">My account</a>
           <button className="btn ghost" onClick={()=>sb.auth.signOut()}><LogOut size={14}/>Sign out</button>
         </div>
       </header>
       <main className="admin-content">
-        {admin&&tab==='Overview'&&<Overview/>}
-        {tab==='Applications'&&<Applications me={me}/>}
-        {admin&&tab==='Committees Management'&&<CommitteesManagementView sb={sb} log={log}/>}
-        {admin&&tab==='Applications Management'&&<ApplicationsManagementView sb={sb} log={log}/>}
-        {admin&&tab==='Roster'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / DIRECTORY</p><h1>Team roster</h1><p>Manage roster records and import the approved team list.</p></div></div><Roster log={log}/></div>}
-        {admin&&tab==='Accounts'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / ACCESS</p><h1>Accounts</h1><p>Manage registered team accounts, roles and active access.</p></div></div><Accounts log={log}/></div>}
-        {admin&&tab==='Site content'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / CONTENT</p><h1>Site content</h1><p>Edit the copy and sections displayed on the public Veritas MUN website.</p></div></div><Content log={log}/></div>}
-        {admin&&tab==='Team cards'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / SECRETARIAT</p><h1>Team cards</h1><p>Manage the Secretariat cards shown on the public Veritas MUN website.</p></div></div><Crud table="team_cards" order="sort_order" log={log} cols={[{k:'sort_order',l:'Order',t:'num'},{k:'full_name',l:'Name'},{k:'title',l:'Title'},{k:'photo_url',l:'Photo URL'},{k:'visible',l:'Visible',t:'bool'}]}/></div>}
-        {admin&&tab==='Announcements'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / COMMUNICATIONS</p><h1>Announcements</h1><p>Share updates with the whole team, a department, or department heads.</p></div></div><Crud table="announcements" log={log} cols={[{k:'title',l:'Title'},{k:'body',l:'Message',t:'area'},{k:'audience',l:'Audience'}]}/></div>}
-        {admin&&tab==='Audit log'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">ADMINISTRATION / HISTORY</p><h1>Audit log</h1><p>A record of administrative changes.</p></div></div><Crud table="audit_log" log={()=>{}} cols={[{k:'created_at',l:'When'},{k:'action',l:'Action'}]}/></div>}
+        {tab==='overview'&&<Overview/>}
+        {tab==='applications'&&<ApplicationsReviewView sb={sb} me={me} canIssueHrInvite={canIssueHrInvite} onNavigateTab={(id)=>setTab(id as PortalTabId)}/>}
+        {tab==='applications_management'&&<ApplicationsManagementView sb={sb} log={log}/>}
+        {tab==='hr_invites'&&<HrInvitesView sb={sb} me={me}/>}
+        {tab==='email_center'&&<EmailCenterView sb={sb} me={me} log={log}/>}
+        {tab==='qr_attendance'&&<QrAttendanceView sb={sb} me={me} initialMode="registry"/>}
+        {tab==='qr_scanner'&&<QrAttendanceView sb={sb} me={me} initialMode="scanner"/>}
+        {tab==='my_pass'&&<QrAttendanceView sb={sb} me={me} initialMode="pass"/>}
+        {tab==='operations'&&<OperationsWorkspaceView sb={sb} me={me} log={log}/>}
+        {tab==='departments'&&<DepartmentsRegistryView sb={sb} me={me} log={log}/>}
+        {tab==='committees_management'&&<CommitteesManagementView sb={sb} log={log}/>}
+        {tab==='conference_cms'&&<ConferenceCmsView sb={sb} log={log} siteContentPanel={admin?<div className="admin-panel" style={{marginTop:14}}><Content log={log}/></div>:undefined}/>}
+        {tab==='accounts'&&<AccountsGovernanceView sb={sb} me={me} log={log}/>}
+        {tab==='support_access'&&supportAuthorized&&<SupportAccessView sb={sb} me={me} onSessionStarted={(s)=>setActiveSupportSession(s)}/>}
+        {tab==='roster'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / DIRECTORY</p><h1>Team roster</h1><p>Manage roster records and import the approved team list.</p></div></div><Roster log={log}/></div>}
+        {tab==='team_cards'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">WEBSITE / SECRETARIAT</p><h1>Team cards</h1><p>Manage the Secretariat cards shown on the public Veritas MUN website.</p></div></div><Crud table="team_cards" order="sort_order" log={log} cols={[{k:'sort_order',l:'Order',t:'num'},{k:'full_name',l:'Name'},{k:'title',l:'Title'},{k:'photo_url',l:'Photo URL'},{k:'visible',l:'Visible',t:'bool'}]}/></div>}
+        {tab==='announcements'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">TEAM MANAGEMENT / COMMUNICATIONS</p><h1>Announcements</h1><p>Share updates with the whole team, a department, or department heads.</p></div></div><Crud table="announcements" log={log} cols={[{k:'title',l:'Title'},{k:'body',l:'Message',t:'area'},{k:'audience',l:'Audience'}]}/></div>}
+        {tab==='audit_log'&&<div className="admin-page"><div className="admin-page-heading"><div><p className="admin-kicker">ADMINISTRATION / HISTORY</p><h1>Audit log</h1><p>A record of administrative changes.</p></div></div><Crud table="audit_log" log={()=>{}} cols={[{k:'created_at',l:'When'},{k:'action',l:'Action'}]}/></div>}
       </main>
     </div>
   </div>;
@@ -2133,6 +1597,9 @@ function App(){
   },[s?.user?.id,loadProfile]);
 
   if(path==='/apply')return <Apply/>;
+  if(path==='/invite'||path.startsWith('/invite/')||path==='/eb-signup'||path==='/setup'){
+    return <InviteOnboardingView sb={sb} pathname={path}/>;
+  }
 
   const gate=resolvePortalGate({
     sessionLoading:s===undefined,
@@ -2156,9 +1623,9 @@ function App(){
     return <div className="box"><h2>Waiting for approval</h2><p>Your account ({me.email||s?.user?.email}) is created and confirmed. An admin needs to mark your account Active in Accounts before you can access the portal.</p><div className="toolbar"><button className="btn" onClick={()=>s?.user?.id&&loadProfile(s.user.id)}>Check again</button><button className="btn ghost" onClick={()=>sb.auth.signOut()}>Sign out</button></div></div>;
   }
   if(gate==='access_denied'){
-    return <div className="box"><h2>Access denied</h2><p>This area is for the Secretariat, IT and department heads.</p><a className="btn" href="/account">My account</a></div>;
+    return <div className="box"><h2>Access denied</h2><p>This area is for the Secretariat, IT and department heads.</p><div className="toolbar"><a className="btn" href="/account">My account</a><a className="btn ghost" href="/pass">My QR Pass</a></div></div>;
   }
-  if(gate==='admin')return <Admin me={me}/>;
+  if(gate==='admin')return <Admin me={me} path={path}/>;
   return <Account me={me}/>;
 }
 

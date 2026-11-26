@@ -1,7 +1,21 @@
 import React, { useSyncExternalStore } from 'react';
 
 export function isPortalPathname(pathname: string): boolean {
-  return pathname === '/login' || pathname === '/signup' || pathname === '/account' || pathname === '/admin';
+  const p = (pathname || '/').replace(/\/+$/, '') || '/';
+  return (
+    p === '/login' ||
+    p === '/signup' ||
+    p === '/account' ||
+    p === '/admin' ||
+    p === '/eb' ||
+    p === '/staff' ||
+    p === '/pass' ||
+    p === '/scanner' ||
+    p === '/invite' ||
+    p.startsWith('/invite/') ||
+    p === '/eb-signup' ||
+    p === '/setup'
+  );
 }
 
 declare global {

@@ -17,7 +17,8 @@
     window.location.replace('/login' + q + h);
     return;
   }
-  if (p === '/login' || p === '/signup' || p === '/account' || p === '/admin' || p === '/apply') {
+  var cleanP = p.replace(/\/+$/, '') || '/';
+  if (cleanP === '/login' || cleanP === '/signup' || cleanP === '/account' || cleanP === '/admin' || cleanP === '/apply' || cleanP === '/eb' || cleanP === '/staff' || cleanP === '/pass' || cleanP === '/scanner' || cleanP === '/invite' || cleanP.indexOf('/invite/') === 0 || cleanP === '/eb-signup' || cleanP === '/setup') {
     document.documentElement.classList.add('is-portal-route');
   }
 })();
@@ -239,12 +240,30 @@ nav.is-scrolled{background:var(--ink);border-bottom-color:var(--rule-dark)}
   min-height:100vh;min-height:100svh;width:100%;display:flex;align-items:center;
 }
 .hero-content{
-  width:100%;max-width:1240px;margin:0 auto;padding:120px 36px 84px;
+  width:100%;max-width:1240px;margin:0 auto;padding:116px 36px 84px;
   display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;
+}
+.hero-lockup{
+  display:flex;align-items:center;gap:clamp(22px,3vw,42px);
+  max-width:min(100%,840px);
+}
+.hero-copy{
+  display:flex;flex-direction:column;align-items:flex-start;min-width:0;
+}
+.hero-emblem{
+  position:relative;flex-shrink:0;
+  width:clamp(160px,15.5vw,228px);height:clamp(160px,15.5vw,228px);
+  border-radius:50%;overflow:hidden;background:var(--taupe);
+  border:1.5px solid rgba(237,230,214,0.46);
+  box-shadow:0 0 0 6px rgba(26,18,23,0.88),0 0 0 7px rgba(79,154,87,0.44),0 20px 46px rgba(0,0,0,0.48);
+}
+.hero-emblem img{
+  display:block;width:100%;height:100%;object-fit:cover;object-position:center 53%;
+  transform:scale(1.02);user-select:none;-webkit-user-drag:none;pointer-events:none;
 }
 .hero h1{
   font-family:'Cinzel',serif;font-weight:600;
-  font-size:clamp(2.7rem,10.2vw,11rem);letter-spacing:.02em;
+  font-size:clamp(2.5rem,5.9vw,6.8rem);letter-spacing:.02em;
   color:var(--cream);line-height:.92;max-width:10.5ch;
 }
 .hero-word{display:inline-block;white-space:nowrap}
@@ -267,8 +286,8 @@ body.hero-interactive .hero-char.is-lifted,
 body.hero-interactive .hero-char:hover{color:#FFFFFF}
 body.hero-interactive .hero-char:hover{--liftY:-14px}
 .hero-tag{
-  font-style:italic;font-size:clamp(1.38rem,2.5vw,2.05rem);
-  margin:30px 0 42px;color:var(--cream-muted);max-width:34ch;
+  font-style:italic;font-size:clamp(1.3rem,2.2vw,1.9rem);
+  margin:22px 0 0;color:var(--cream-muted);max-width:34ch;
 }
 .hero-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 
@@ -395,7 +414,7 @@ body.hero-interactive .hero-char:hover{--liftY:-14px}
 }
 .printed-photo.is-missing img{display:none}
 .printed-photo.is-missing .photo-placeholder{display:flex}
-.secretariat-meta{margin-top:18px;max-width:100%}
+.secretariat-meta{margin-top:22px;max-width:100%}
 .secretariat-entry--zain .secretariat-meta{padding-right:20px}
 .secretariat-entry--laila .secretariat-meta{text-align:center;padding:0 12px}
 .secretariat-entry--laya .secretariat-meta{padding-left:24px}
@@ -577,6 +596,10 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
   .footer-bar{padding-right:clamp(240px,28vw,340px)}
 }
 
+@media (max-width:860px){
+  .hero-lockup{flex-direction:column;align-items:flex-start;gap:20px}
+  .hero-emblem{width:160px;height:160px}
+}
 @media (max-width:720px){
   .hero-content{padding:112px 20px 72px}
   .band{padding:6vh 0}
@@ -596,10 +619,10 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
   .secretariat-entry--laila .printed-photo{width:176px;padding:10px 10px 30px 10px}
   .secretariat-entry--laila .secretariat-meta{margin-top:0;text-align:left;padding:0}
   .secretariat-entry--laila .secretariat-name{font-size:1.22rem}
-  .secretariat-entry--zain{order:2;z-index:1;margin-top:-18px;margin-bottom:0}
-  .secretariat-entry--laya{order:3;z-index:2;margin-top:-10px;margin-bottom:0;margin-left:-10px}
+  .secretariat-entry--zain{order:2;z-index:1;margin-top:-10px;margin-bottom:0}
+  .secretariat-entry--laya{order:3;z-index:2;margin-top:-4px;margin-bottom:0;margin-left:-6px}
   .printed-photo{width:156px;padding:9px 9px 26px 9px}
-  .secretariat-meta{margin-top:12px}
+  .secretariat-meta{margin-top:18px}
   .secretariat-entry--zain .secretariat-meta{padding-right:10px}
   .secretariat-entry--laya .secretariat-meta{padding-left:12px}
   .secretariat-name{font-size:1rem}
@@ -607,17 +630,21 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
   .footer-bar{padding:24px 20px 20px;align-items:flex-start;flex-direction:column}
 }
 @media (max-width:699px){
-  .hero-content{padding:80px 20px 46vh;justify-content:flex-start}
-  .hero-tag{margin:16px 0 24px}
+  .hero-content{padding:84px 20px 44vh;justify-content:flex-start}
+  .hero-lockup{gap:14px}
+  .hero-emblem{width:136px;height:136px}
+  .hero h1{font-size:clamp(2.4rem,10.5vw,3.6rem)}
+  .hero-tag{margin:12px 0 0}
   #statueDock{right:3vw;bottom:24px}
-  .statue-btn{height:min(46vh,78vw)}
+  .statue-btn{height:min(44vh,72vw)}
 }
 @media (max-width:699px) and (max-height:650px){
   .hero-content{padding:76px 16px 42vh}
-  .hero h1{font-size:clamp(2.35rem,9.5vw,3.4rem)}
-  .hero-tag{margin:12px 0 18px;font-size:1.22rem}
+  .hero-emblem{width:108px;height:108px}
+  .hero h1{font-size:clamp(2.2rem,9.2vw,3.2rem)}
+  .hero-tag{margin:10px 0 0;font-size:1.18rem}
   #statueDock{bottom:20px}
-  .statue-btn{height:min(40vh,66vw)}
+  .statue-btn{height:min(38vh,64vw)}
 }
 @media (max-width:440px){
   .band-inner{padding:0 16px}
@@ -626,8 +653,9 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
   .secretariat-entry--laila{grid-template-columns:148px 1fr;gap:12px}
   .secretariat-entry--laila .printed-photo{width:148px;padding:9px 9px 26px 9px}
   .printed-photo{width:136px;padding:8px 8px 22px 8px}
-  .secretariat-entry--zain{margin-top:-16px}
-  .secretariat-entry--laya{margin-top:-8px;margin-left:-14px}
+  .secretariat-entry--zain{margin-top:-8px}
+  .secretariat-entry--laya{margin-top:-2px;margin-left:-8px}
+  .secretariat-meta{margin-top:18px}
   .secretariat-name{font-size:.96rem}
   .secretariat-role{font-size:.88rem}
 }
@@ -673,8 +701,15 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
 <main id="site">
   <section id="top" class="hero band--dark">
     <div class="hero-content">
-      <h1 class="hero-title" aria-label="Veritas MUN"><span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:0">V</span><span class="hero-char" style="--ci:1">E</span><span class="hero-char" style="--ci:2">R</span><span class="hero-char" style="--ci:3">I</span><span class="hero-char" style="--ci:4">T</span><span class="hero-char" style="--ci:5">A</span><span class="hero-char" style="--ci:6">S</span></span> <span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:7">M</span><span class="hero-char" style="--ci:8">U</span><span class="hero-char" style="--ci:9">N</span></span></h1>
-      <p class="rise hero-tag">Where diplomacy meets truth</p>
+      <div class="hero-lockup">
+        <figure class="rise hero-emblem">
+          <img src="/assets/aistudio/WhatsApp_Image_2026-11-18_at_12.05.00_PM__2__7bc802b0.jpeg" alt="Veritas MUN Statue of Liberty emblem with globe and green laurel wreath" draggable="false">
+        </figure>
+        <div class="hero-copy">
+          <h1 class="hero-title" aria-label="Veritas MUN"><span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:0">V</span><span class="hero-char" style="--ci:1">E</span><span class="hero-char" style="--ci:2">R</span><span class="hero-char" style="--ci:3">I</span><span class="hero-char" style="--ci:4">T</span><span class="hero-char" style="--ci:5">A</span><span class="hero-char" style="--ci:6">S</span></span> <span class="hero-word" aria-hidden="true"><span class="hero-char" style="--ci:7">M</span><span class="hero-char" style="--ci:8">U</span><span class="hero-char" style="--ci:9">N</span></span></h1>
+          <p class="rise hero-tag">Where diplomacy meets truth</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -785,6 +820,8 @@ body.bg-is-light .torch-glow{mix-blend-mode:normal}
       </div>
     </div>
   </section>
+
+  <div id="publicCmsExtras"></div>
 
   <section id="apply" class="band">
     <div class="band-inner">
@@ -3085,6 +3122,12 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     inner.appendChild(list);
   }
 
+  var FALLBACK_SECRETARIAT_PHOTOS = {
+    'laila mohammad': '/assets/aistudio/WhatsApp_Image_2026-11-22_at_9.00.13_AM__1__294445e1.jpeg',
+    'zain rawashdeh': '/assets/aistudio/WhatsApp_Image_2026-11-03_at_9.48.11_AM__2__b371837c.jpeg',
+    'laya shahwan': '/assets/aistudio/WhatsApp_Image_2026-10-21_at_5.27.20_PM__3__1145c352.jpeg'
+  };
+
   function renderTeamCards(cards) {
     var cluster = $('.secretariat-cluster');
     if (!cluster || !Array.isArray(cards) || cards.length === 0) return;
@@ -3098,13 +3141,24 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       fig.className = 'printed-photo';
       var img = document.createElement('img');
       var cleanUrl = safeHref(card.photo_url);
+      var nameKey = String(card.full_name || '').trim().toLowerCase();
+      var fallbackUrl = FALLBACK_SECRETARIAT_PHOTOS[nameKey] || '';
       if (cleanUrl) {
         img.src = cleanUrl;
+      } else if (fallbackUrl) {
+        img.src = fallbackUrl;
       } else {
         fig.classList.add('is-missing');
       }
       img.alt = card.full_name || 'Secretariat member';
-      img.addEventListener('error', function() { fig.classList.add('is-missing'); });
+      img.addEventListener('error', function() {
+        if (fallbackUrl && img.getAttribute('data-fallback-tried') !== '1') {
+          img.setAttribute('data-fallback-tried', '1');
+          img.src = fallbackUrl;
+          return;
+        }
+        fig.classList.add('is-missing');
+      });
       var ph = document.createElement('span');
       ph.className = 'photo-placeholder';
       ph.setAttribute('aria-hidden', 'true');
@@ -3186,8 +3240,21 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       copy.className = 'committee-copy';
       var h3 = document.createElement('h3');
       h3.className = 'dynamic-entry-title';
-      h3.textContent = item.name || '';
+      h3.textContent = (item.abbreviation ? '[' + item.abbreviation + '] ' : '') + (item.name || '');
       copy.appendChild(h3);
+
+      var metaParts = [];
+      if (item.chamber) metaParts.push(item.chamber);
+      if (item.difficulty) metaParts.push(item.difficulty);
+      if (item.capacity) metaParts.push(item.capacity + ' delegates');
+      if (item.chair_name) metaParts.push('Chair: ' + item.chair_name);
+      if (item.vice_chair_name) metaParts.push('Co-Chair: ' + item.vice_chair_name);
+      if (metaParts.length > 0) {
+        var metaLine = document.createElement('p');
+        metaLine.className = 'dynamic-entry-meta';
+        metaLine.textContent = metaParts.join(' · ');
+        copy.appendChild(metaLine);
+      }
 
       var descText = String(item.description || '').trim();
       if (descText) {
@@ -3196,10 +3263,191 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
         p.textContent = descText;
         copy.appendChild(p);
       }
+
+      if (Array.isArray(item.topics) && item.topics.length > 0) {
+        var cleanTopics = item.topics.map(function(t) { return String(t || '').trim(); }).filter(Boolean);
+        if (cleanTopics.length > 0) {
+          var tp = document.createElement('p');
+          tp.className = 'dynamic-entry-body';
+          tp.style.opacity = '0.86';
+          tp.textContent = 'Agenda: ' + cleanTopics.join(' | ');
+          copy.appendChild(tp);
+        }
+      }
       entry.appendChild(copy);
       list.appendChild(entry);
     });
     inner.appendChild(list);
+  }
+
+  function renderRelationalSchedule(days, sessions) {
+    var inner = document.querySelector('#schedule .band-inner');
+    if (!inner || !Array.isArray(days) || days.length === 0) return false;
+    var head = inner.querySelector('.section-head');
+    inner.textContent = '';
+    if (head) inner.appendChild(head);
+
+    var sortedDays = days
+      .filter(function(d) { return d && d.published !== false; })
+      .sort(function(a, b) { return (Number(a.day_number) || 0) - (Number(b.day_number) || 0); });
+    if (sortedDays.length === 0) return false;
+
+    var list = document.createElement('div');
+    list.className = 'dynamic-list';
+    sortedDays.forEach(function(day) {
+      var daySessions = (Array.isArray(sessions) ? sessions : [])
+        .filter(function(s) { return s && s.published !== false && s.day_id === day.id; })
+        .sort(function(a, b) { return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0); });
+      var dayCard = document.createElement('article');
+      dayCard.className = 'dynamic-entry';
+      var dMeta = document.createElement('p');
+      dMeta.className = 'dynamic-entry-meta';
+      dMeta.textContent = 'Day ' + (day.day_number || 1) + (day.date_label ? ' · ' + day.date_label : '');
+      dayCard.appendChild(dMeta);
+      var dTitle = document.createElement('h3');
+      dTitle.className = 'dynamic-entry-title';
+      dTitle.textContent = day.title || 'Conference Day';
+      dayCard.appendChild(dTitle);
+
+      daySessions.forEach(function(sess) {
+        var row = document.createElement('p');
+        row.className = 'dynamic-entry-body';
+        var timeRange = [sess.start_time, sess.end_time].filter(Boolean).join('–');
+        var loc = sess.location ? ' (' + sess.location + ')' : '';
+        row.textContent = (timeRange ? timeRange + ' · ' : '') + (sess.title || '') + loc;
+        dayCard.appendChild(row);
+      });
+      list.appendChild(dayCard);
+    });
+    inner.appendChild(list);
+    return true;
+  }
+
+  function renderRelationalFaqs(faqs) {
+    var inner = document.querySelector('#faq .band-inner');
+    if (!inner || !Array.isArray(faqs)) return false;
+    var pubFaqs = faqs.filter(function(f) { return f && f.published !== false && String(f.question || '').trim(); });
+    if (pubFaqs.length === 0) return false;
+
+    var head = inner.querySelector('.section-head');
+    inner.textContent = '';
+    if (head) inner.appendChild(head);
+    var list = document.createElement('div');
+    list.className = 'dynamic-list';
+    pubFaqs.forEach(function(f) {
+      var entry = document.createElement('article');
+      entry.className = 'dynamic-entry';
+      if (f.category) {
+        var meta = document.createElement('p');
+        meta.className = 'dynamic-entry-meta';
+        meta.textContent = f.category;
+        entry.appendChild(meta);
+      }
+      var q = document.createElement('h3');
+      q.className = 'dynamic-entry-title';
+      q.textContent = f.question || '';
+      var a = document.createElement('p');
+      a.className = 'dynamic-entry-body';
+      a.textContent = f.answer || '';
+      entry.appendChild(q);
+      entry.appendChild(a);
+      list.appendChild(entry);
+    });
+    inner.appendChild(list);
+    return true;
+  }
+
+  function renderOptionalPublicBands(payload) {
+    var host = document.getElementById('publicCmsExtras');
+    if (!host) return;
+    host.textContent = '';
+
+    var docs = Array.isArray(payload.documents) ? payload.documents.filter(function(d) { return d && d.published !== false && d.audience === 'public'; }) : [];
+    var sponsors = Array.isArray(payload.sponsors) ? payload.sponsors.filter(function(s) { return s && s.published !== false; }) : [];
+    var gallery = Array.isArray(payload.gallery) ? payload.gallery.filter(function(g) { return g && g.published !== false; }) : [];
+
+    function appendExtraBand(titleText, items, renderItem) {
+      if (!items.length) return;
+      var sec = document.createElement('section');
+      sec.className = 'band';
+      var inner = document.createElement('div');
+      inner.className = 'band-inner';
+      var head = document.createElement('div');
+      head.className = 'section-head';
+      var h2 = document.createElement('h2');
+      h2.className = 'ink-heading';
+      h2.textContent = titleText;
+      head.appendChild(h2);
+      inner.appendChild(head);
+      var list = document.createElement('div');
+      list.className = 'dynamic-list';
+      items.forEach(function(it) { list.appendChild(renderItem(it)); });
+      inner.appendChild(list);
+      sec.appendChild(inner);
+      host.appendChild(sec);
+    }
+
+    appendExtraBand('Conference Resources', docs, function(d) {
+      var art = document.createElement('article');
+      art.className = 'dynamic-entry';
+      if (d.category) {
+        var m = document.createElement('p'); m.className = 'dynamic-entry-meta'; m.textContent = d.category; art.appendChild(m);
+      }
+      var h = document.createElement('h3'); h.className = 'dynamic-entry-title'; h.textContent = d.title || ''; art.appendChild(h);
+      var url = safeHref(d.file_url);
+      if (url) {
+        var link = document.createElement('a');
+        link.className = 'btn-outline';
+        link.style.marginTop = '8px';
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Open Document';
+        art.appendChild(link);
+      }
+      return art;
+    });
+
+    appendExtraBand('Partners & Sponsors', sponsors, function(s) {
+      var art = document.createElement('article');
+      art.className = 'dynamic-entry committee-entry';
+      var logoUrl = safeHref(s.logo_url);
+      if (logoUrl) {
+        var img = document.createElement('img');
+        img.className = 'committee-logo';
+        img.src = logoUrl;
+        img.alt = (s.name || 'Sponsor') + ' logo';
+        art.appendChild(img);
+      }
+      var cp = document.createElement('div'); cp.className = 'committee-copy';
+      if (s.tier) { var m = document.createElement('p'); m.className = 'dynamic-entry-meta'; m.textContent = s.tier; cp.appendChild(m); }
+      var h = document.createElement('h3'); h.className = 'dynamic-entry-title'; h.textContent = s.name || ''; cp.appendChild(h);
+      var siteUrl = safeHref(s.website_url);
+      if (siteUrl) {
+        var a = document.createElement('a'); a.href = siteUrl; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = siteUrl; cp.appendChild(a);
+      }
+      art.appendChild(cp);
+      return art;
+    });
+
+    appendExtraBand('Conference Gallery', gallery, function(g) {
+      var art = document.createElement('article');
+      art.className = 'dynamic-entry committee-entry';
+      var imgUrl = safeHref(g.image_url);
+      if (imgUrl) {
+        var img = document.createElement('img');
+        img.className = 'committee-logo';
+        img.src = imgUrl;
+        img.alt = g.title || 'Gallery photo';
+        art.appendChild(img);
+      }
+      var cp = document.createElement('div'); cp.className = 'committee-copy';
+      if (g.category) { var m = document.createElement('p'); m.className = 'dynamic-entry-meta'; m.textContent = g.category; cp.appendChild(m); }
+      var h = document.createElement('h3'); h.className = 'dynamic-entry-title'; h.textContent = g.title || ''; cp.appendChild(h);
+      if (g.caption) { var p = document.createElement('p'); p.className = 'dynamic-entry-body'; p.textContent = g.caption; cp.appendChild(p); }
+      art.appendChild(cp);
+      return art;
+    });
   }
 
   function renderApplySection(appSettings) {
@@ -3287,8 +3535,12 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
       if (!Array.isArray(payload.committees)) {
         renderDynamicTbaSection('committees', content.committees, content.settings);
       }
-      renderDynamicTbaSection('schedule', content.schedule, content.settings);
-      renderDynamicTbaSection('faq', content.faq, content.settings);
+      if (!renderRelationalSchedule(payload.scheduleDays, payload.scheduleSessions)) {
+        renderDynamicTbaSection('schedule', content.schedule, content.settings);
+      }
+      if (!renderRelationalFaqs(payload.faqs)) {
+        renderDynamicTbaSection('faq', content.faq, content.settings);
+      }
       if (content.application_settings) {
         renderApplySection(content.application_settings);
       }
@@ -3299,6 +3551,9 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
         var footerBrand = $('.footer-brand h2');
         if (footerBrand) footerBrand.textContent = content.settings.site_name;
       }
+    } else {
+      renderRelationalSchedule(payload.scheduleDays, payload.scheduleSessions);
+      renderRelationalFaqs(payload.faqs);
     }
     if (Array.isArray(payload.committees)) {
       renderCommitteesSection(payload.committees, content ? content.committees : null);
@@ -3306,6 +3561,7 @@ import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.169.0/
     if (payload.teamCards) {
       renderTeamCards(payload.teamCards);
     }
+    renderOptionalPublicBands(payload);
     revealVisibleElements();
   };
 
