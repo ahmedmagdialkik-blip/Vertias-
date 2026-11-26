@@ -2,6 +2,10 @@
 // If anything fails, the site keeps its built-in content.
 import { mergeSiteContentWithFallback } from './utils/portalLogic';
 import { normalizeCommitteeRows } from './utils/committeesAndSettingsLogic';
+import {
+  normalizeEbDepartmentRows,
+  normalizeEbMemberRows
+} from './utils/executiveBoardLogic';
 
 const SUPABASE_URL = (import.meta.env?.VITE_SUPABASE_URL || '').trim() || 'https://iaionntcwjblvndmdesw.supabase.co';
 const SUPABASE_KEY =
@@ -58,6 +62,8 @@ function normalizeLegacyContentRows(rows) {
       siteRows,
       teamRows,
       committeeRows,
+      ebDepartmentRows,
+      ebMemberRows,
       scheduleDays,
       scheduleSessions,
       faqs,
@@ -68,6 +74,8 @@ function normalizeLegacyContentRows(rows) {
       get('site_content').catch(() => null),
       get('team_cards', '&visible=eq.true&order=sort_order.asc').catch(() => null),
       get('committees', '&enabled=eq.true&order=sort_order.asc,created_at.asc').catch(() => null),
+      get('eb_departments', '&order=sort_order.asc').catch(() => null),
+      get('eb_members', '&order=sort_order.asc').catch(() => null),
       get('schedule_days', '&published=eq.true&order=day_number.asc,sort_order.asc').catch(() => null),
       get('schedule_sessions', '&published=eq.true&order=sort_order.asc,start_time.asc').catch(() => null),
       get('faqs', '&published=eq.true&order=sort_order.asc,created_at.asc').catch(() => null),
@@ -85,6 +93,10 @@ function normalizeLegacyContentRows(rows) {
     }
     if (Array.isArray(committeeRows)) {
       payload.committees = normalizeCommitteeRows(committeeRows).filter((c) => c.enabled);
+    }
+    if (Array.isArray(ebDepartmentRows) && ebDepartmentRows.length > 0 && Array.isArray(ebMemberRows) && ebMemberRows.length > 0) {
+      payload.ebDepartments = normalizeEbDepartmentRows(ebDepartmentRows);
+      payload.ebMembers = normalizeEbMemberRows(ebMemberRows);
     }
     if (Array.isArray(scheduleDays)) payload.scheduleDays = scheduleDays;
     if (Array.isArray(scheduleSessions)) payload.scheduleSessions = scheduleSessions;

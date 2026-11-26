@@ -8,6 +8,10 @@ import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import type { TeamCardRow } from './types/database';
 import { normalizeCommitteeRows } from './utils/committeesAndSettingsLogic';
+import {
+  normalizeEbDepartmentRows,
+  normalizeEbMemberRows
+} from './utils/executiveBoardLogic';
 import { DEFAULT_TEAM_CARDS, mergeSiteContentWithFallback } from './utils/portalLogic';
 
 const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
@@ -30,6 +34,8 @@ const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
         .eq('enabled', true)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
+      supabase.from('eb_departments').select('*').order('sort_order', { ascending: true }),
+      supabase.from('eb_members').select('*').order('sort_order', { ascending: true }),
       supabase.from('schedule_days').select('*').eq('published', true).order('day_number', { ascending: true }).order('sort_order', { ascending: true }),
       supabase.from('schedule_sessions').select('*').eq('published', true).order('sort_order', { ascending: true }).order('start_time', { ascending: true }),
       supabase.from('faqs').select('*').eq('published', true).order('sort_order', { ascending: true }),
@@ -37,7 +43,7 @@ const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
       supabase.from('sponsors').select('*').eq('published', true).order('sort_order', { ascending: true }),
       supabase.from('gallery_items').select('*').eq('published', true).order('sort_order', { ascending: true })
     ])
-      .then(([contentRes, cardsRes, committeesRes, daysRes, sessRes, faqRes, docRes, spRes, galRes]) => {
+      .then(([contentRes, cardsRes, committeesRes, ebDeptsRes, ebMembersRes, daysRes, sessRes, faqRes, docRes, spRes, galRes]) => {
         if (cancelled) return;
         const content = mergeSiteContentWithFallback(contentRes.data ?? []);
         const cards =
@@ -47,10 +53,18 @@ const PublicSiteSync: React.FC<{ active: boolean }> = ({ active }) => {
         const committees = committeesRes.error
           ? undefined
           : normalizeCommitteeRows(committeesRes.data ?? []).filter(c => c.enabled);
+        const ebDepartments = !ebDeptsRes.error && Array.isArray(ebDeptsRes.data) && ebDeptsRes.data.length > 0
+          ? normalizeEbDepartmentRows(ebDeptsRes.data)
+          : undefined;
+        const ebMembers = !ebMembersRes.error && Array.isArray(ebMembersRes.data) && ebMembersRes.data.length > 0
+          ? normalizeEbMemberRows(ebMembersRes.data)
+          : undefined;
         window.__veritasApplyPublicData?.({
           content,
           teamCards: cards,
           committees,
+          ebDepartments,
+          ebMembers,
           scheduleDays: daysRes.error ? undefined : daysRes.data ?? [],
           scheduleSessions: sessRes.error ? undefined : sessRes.data ?? [],
           faqs: faqRes.error ? undefined : faqRes.data ?? [],

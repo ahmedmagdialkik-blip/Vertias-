@@ -114,3 +114,22 @@ export interface AnnouncementRow {
   created_by: string | null;
   created_at: string;
 }
+
+export interface EbDepartmentRow {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EbMemberRow {
+  id: string;
+  department_id: string;
+  full_name: string;
+  role: string;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+

@@ -24,6 +24,7 @@ import { RosterTab } from '../components/admin/RosterTab';
 import { SettingsTab } from '../components/admin/SettingsTab';
 import { TeamCardsTab } from '../components/admin/TeamCardsTab';
 import { PortalFrame } from '../components/PortalFrame';
+import { ExecutiveBoardManagementView } from '../portal/components/ExecutiveBoardManagementView';
 import { ToastStack, type ToastMessage } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
 import { navigate, RouterLink } from '../lib/router';
@@ -35,6 +36,7 @@ type AdminTab =
   | 'overview'
   | 'roster'
   | 'members'
+  | 'eb'
   | 'content'
   | 'cards'
   | 'announcements'
@@ -45,6 +47,7 @@ const NAV_ITEMS: Array<{ key: AdminTab; label: string; icon: React.ComponentType
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'roster', label: 'Roster', icon: Users },
   { key: 'members', label: 'Members', icon: UserCheck },
+  { key: 'eb', label: 'EB Members', icon: FileEdit },
   { key: 'content', label: 'Site Content', icon: FileEdit },
   { key: 'cards', label: 'Team Cards', icon: ImageIcon },
   { key: 'announcements', label: 'Announcements', icon: Bell },
@@ -325,6 +328,15 @@ export const AdminPage: React.FC = () => {
               loading={dataLoading}
               onRefresh={loadAdminData}
               onToast={pushToast}
+            />
+          ) : null}
+
+          {activeTab === 'eb' && supabase ? (
+            <ExecutiveBoardManagementView
+              sb={supabase}
+              log={(action, details = {}) =>
+                supabase?.from('audit_log').insert({ user_id: user?.id || null, action, details })
+              }
             />
           ) : null}
 
